@@ -1,13 +1,14 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="es">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Control_De_Tareas</title>
+    <title>@ViewData["Title"] - Control De Tareas</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
 	<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 	<link href="~/css/side.css" rel="stylesheet" />
     <link rel="stylesheet" href="~/Control_De_Tareas.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
 <body>
     <!-- Navbar -->
@@ -15,8 +16,32 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="/">Control De Tareas</a>
             <div class="d-flex align-items-center">
-                <span class="text-white me-3">Bienvenido, Carlos Administrador</span>
-                <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+                @if (User.Identity.IsAuthenticated)
+                {
+                    <span class="text-white me-3">
+                        Bienvenido, @User.Identity.Name
+                        @if (User.IsInRole("Administrador"))
+                        {
+                            <span class="badge bg-danger ms-2">Administrador</span>
+                        }
+                        else if (User.IsInRole("Profesor"))
+                        {
+                            <span class="badge bg-success ms-2">Profesor</span>
+                        }
+                        else if (User.IsInRole("Estudiante"))
+                        {
+                            <span class="badge bg-info ms-2">Estudiante</span>
+                        }
+                    </span>
+                    <a href="@Url.Action("Logout", "Account")" class="btn btn-sm btn-outline-light">
+                        <i class="fas fa-sign-out-alt"></i> Salir
+                    </a>
+                }
+                else
+                {
+                    <span class="text-white me-3">Invitado</span>
+                }
+                <button class="navbar-toggler d-md-none ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </div>
