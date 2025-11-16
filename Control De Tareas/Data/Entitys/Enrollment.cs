@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Control_De_Tareas.Data.Entitys
 {
-)]
+
     public class Enrollments
     {
         [Key]
