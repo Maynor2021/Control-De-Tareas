@@ -117,5 +117,17 @@ namespace Control_De_Tareas.Controllers
         {
             return View();
         }
+
+        // Code Verification
+        public IActionResult VerifyCode()
+        {
+            return View();
+        }
+
+        // Password Change
+        public IActionResult ChangePassword()
+        {
+            return View();
+        }
     }
 }
