@@ -39,7 +39,7 @@ namespace Control_De_Tareas.Controllers
         [HttpGet]
         public IActionResult Login()
         {
-            if (User.Identity.IsAuthenticated)
+            if (User.Identity?.IsAuthenticated == true) // 👈 Corregido
             {
                 return RedirectToAction("Index");
             }
@@ -60,7 +60,7 @@ namespace Control_De_Tareas.Controllers
                 if (user != null && user.PasswordHash == password)
                 {
                     var userRole = user.UserRoles.FirstOrDefault()?.Role;
-                    
+
                     if (userRole == null)
                     {
                         ViewBag.Error = "Usuario sin rol asignado";
@@ -71,8 +71,8 @@ namespace Control_De_Tareas.Controllers
                     {
                         new Claim(ClaimTypes.Name, user.UserName),
                         new Claim(ClaimTypes.Email, user.Email),
-                        new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                        new Claim(ClaimTypes.Role, userRole.RoleName)
+                        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), // 👈 Corregido: user.Id
+                        new Claim(ClaimTypes.Role, userRole.Name) // 👈 Corregido: userRole.Name
                     };
 
                     var identity = new ClaimsIdentity(claims, "CookieAuth");

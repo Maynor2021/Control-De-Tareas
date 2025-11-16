@@ -24,16 +24,18 @@ namespace Control_De_Tareas.Controllers
 
             try
             {
-                var cursos = _context.Courses
-                    .Include(c => c.Instructor)
-                    .Select(c => new CursoDto
+                var cursos = _context.CourseOfferings
+                    .Include(co => co.Course)
+                    .Include(co => co.Professor)
+                    .Include(co => co.Enrollments)
+                    .Select(co => new CursoDto
                     {
-                        Id = c.Id,
-                        Codigo = c.Codigo,
-                        Nombre = c.Nombre,
-                        InstructorNombre = c.Instructor != null ? c.Instructor.Instructor : "",
-                        CantidadEstudiantes = 0,
-                        Estado = c.Estado
+                        Id = co.Id,
+                        Codigo = co.Course.Code,
+                        Nombre = co.Course.Title,
+                        InstructorNombre = co.Professor.FullName ?? co.Professor.UserName,
+                        CantidadEstudiantes = co.Enrollments.Count(e => !e.IsSoftDeleted && e.Status == "Active"),
+                        Estado = co.IsActive ? "Activo" : "Inactivo"
                     })
                     .ToList();
 
