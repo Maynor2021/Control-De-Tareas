@@ -1,10 +1,12 @@
-﻿using Control_De_Tareas.Data.Entitys;
+using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
+using Control_De_Tareas.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Control_De_Tareas.Controllers
 {
+    [ProfesorOAdminAuthorize] // Solo profesores y admin
     public class CursosController : Controller
     {
         private Context _context;
@@ -22,7 +24,6 @@ namespace Control_De_Tareas.Controllers
 
             try
             {
-               
                 var cursos = _context.Courses
                     .Include(c => c.Instructor)
                     .Select(c => new CursoDto
@@ -30,7 +31,7 @@ namespace Control_De_Tareas.Controllers
                         Id = c.Id,
                         Codigo = c.Codigo,
                         Nombre = c.Nombre,
-                        InstructorNombre=c.Instructor.Instructor,
+                        InstructorNombre = c.Instructor != null ? c.Instructor.Instructor : "",
                         CantidadEstudiantes = 0,
                         Estado = c.Estado
                     })
