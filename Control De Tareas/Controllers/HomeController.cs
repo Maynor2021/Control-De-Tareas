@@ -8,34 +8,64 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Control_De_Tareas.Controllers
 {
+    /// <summary>
+    /// Controlador principal encargado de manejar navegación general,
+    /// login, logout y vistas informativas del sistema.
+    /// </summary>
     public class HomeController : Controller
     {
         private readonly Context _context;
         private readonly ILogger<HomeController> _logger;
 
+        /// <summary>
+        /// Constructor de HomeController.
+        /// Inicializa el contexto de base de datos y el logger del sistema.
+        /// </summary>
+        /// <param name="context">Contexto de base de datos para consultas.</param>
+        /// <param name="logger">Servicio de logging para registrar eventos y errores.</param>
         public HomeController(Context context, ILogger<HomeController> logger)
         {
             _context = context;
             _logger = logger;
         }
 
+        /// <summary>
+        /// Página principal del sistema después del inicio de sesión.
+        /// </summary>
+        /// <returns>Vista principal.</returns>
         public IActionResult Index()
         {
             return View();
         }
 
+        /// <summary>
+        /// Muestra la vista de privacidad.
+        /// </summary>
+        /// <returns>Vista informativa de privacidad.</returns>
         public IActionResult Privacy()
         {
             return View();
         }
 
+        /// <summary>
+        /// Página de error del sistema.
+        /// Usada para mostrar excepciones y fallos inesperados.
+        /// </summary>
+        /// <returns>Vista de error.</returns>
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            return View(new ErrorViewModel
+            {
+                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier
+            });
         }
 
-        // GET: Login
+        /// <summary>
+        /// GET: Vista de login.
+        /// Si el usuario ya está autenticado, se redirige a la página principal.
+        /// </summary>
+        /// <returns>Vista de login o redirección a Index.</returns>
         [HttpGet]
         public IActionResult Login()
         {
@@ -46,7 +76,13 @@ namespace Control_De_Tareas.Controllers
             return View();
         }
 
-        // POST: Login
+        /// <summary>
+        /// POST: Procesa la autenticación del usuario.
+        /// Valida credenciales, asigna claims y genera cookie de autenticación.
+        /// </summary>
+        /// <param name="email">Correo electrónico del usuario.</param>
+        /// <param name="password">Contraseña proporcionada.</param>
+        /// <returns>Redirección al Home o mensaje de error.</returns>
         [HttpPost]
         public async Task<IActionResult> Login(string email, string password)
         {
@@ -60,7 +96,7 @@ namespace Control_De_Tareas.Controllers
                 if (user != null && user.PasswordHash == password)
                 {
                     var userRole = user.UserRoles.FirstOrDefault()?.Role;
-                    
+
                     if (userRole == null)
                     {
                         ViewBag.Error = "Usuario sin rol asignado";
@@ -99,20 +135,31 @@ namespace Control_De_Tareas.Controllers
             return View();
         }
 
-        // Logout
+        /// <summary>
+        /// Cierra la sesión del usuario y elimina la cookie de autenticación.
+        /// </summary>
+        /// <returns>Redirección a la vista de Login.</returns>
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync("CookieAuth");
             return RedirectToAction("Login");
         }
 
-        // Register
+        /// <summary>
+        /// Vista para registrar un nuevo usuario.
+        /// (Funcionalidad futura del sistema.)
+        /// </summary>
+        /// <returns>Vista de registro.</returns>
         public IActionResult Register()
         {
             return View();
         }
 
-        // Password Recovery
+        /// <summary>
+        /// Vista para recuperación de contraseña.
+        /// (Funcionalidad futura del sistema.)
+        /// </summary>
+        /// <returns>Vista de recuperación de contraseña.</returns>
         public IActionResult PasswordRecovery()
         {
             return View();

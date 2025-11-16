@@ -6,18 +6,32 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Control_De_Tareas.Controllers
 {
+    /// <summary>
+    /// Controlador encargado de gestionar la visualización y administración de cursos.
+    /// Solo accesible para usuarios con rol de Profesor o Administrador.
+    /// </summary>
     [ProfesorOAdminAuthorize] // Solo profesores y admin
     public class CursosController : Controller
     {
-        private Context _context;
-        private ILogger<CursosController> _logger;
+        private readonly Context _context;
+        private readonly ILogger<CursosController> _logger;
 
+        /// <summary>
+        /// Inicializa una nueva instancia del controlador de cursos.
+        /// </summary>
+        /// <param name="context">Contexto de base de datos EF Core.</param>
+        /// <param name="logger">Servicio de logging para registrar errores y eventos.</param>
         public CursosController(Context context, ILogger<CursosController> logger)
         {
             _context = context;
             _logger = logger;
         }
 
+        /// <summary>
+        /// Muestra la lista de cursos registrados en la plataforma.
+        /// Carga el instructor asociado y genera un modelo listo para la vista.
+        /// </summary>
+        /// <returns>Vista con el modelo que contiene la lista de cursos.</returns>
         public IActionResult Index()
         {
             var viewModel = new CursosVm();
