@@ -111,5 +111,11 @@ namespace Control_De_Tareas.Controllers
         {
             return View();
         }
+
+        // Password Recovery
+        public IActionResult PasswordRecovery()
+        {
+            return View();
+        }
     }
 }
