@@ -1,3 +1,4 @@
+using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,8 +8,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 
+// Configuración de la base de datos
 builder.Services.AddDbContext<Context>(options =>
-      options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Registrar el DbSeeder
+builder.Services.AddTransient<DbSeeder>();
 
 // ========== CONFIGURACIÓN DE AUTENTICACIÓN Y AUTORIZACIÓN ==========
 builder.Services.AddAuthentication("CookieAuth")
@@ -45,6 +50,16 @@ app.UseAuthorization();
 
 // Manejar errores 403/404
 app.UseStatusCodePagesWithReExecute("/Error/{0}");
+
+// Ejecutar el seeder al iniciar la aplicación (solo en desarrollo)
+if (app.Environment.IsDevelopment())
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
+        await seeder.SeedAsync();
+    }
+}
 
 app.MapControllerRoute(
     name: "default",

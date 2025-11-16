@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Security.Claims;
-using Control_De_Tareas.Data.Entitys;
+using Control_De_Tareas.Data;
 using Control_De_Tareas.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;

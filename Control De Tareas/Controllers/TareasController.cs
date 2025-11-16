@@ -2,6 +2,7 @@ using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Control_De_Tareas.Data;
 
 namespace Control_De_Tareas.Controllers
 {
