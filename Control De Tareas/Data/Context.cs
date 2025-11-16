@@ -1,6 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Control_De_Tareas.Data.Entitys;
+using Microsoft.EntityFrameworkCore;
 
-namespace Control_De_Tareas.Data.Entitys
+namespace Control_De_Tareas.Data
 {
     public class Context : DbContext
     {

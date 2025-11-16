@@ -1,8 +1,8 @@
-using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
 using Control_De_Tareas.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Control_De_Tareas.Data;
 
 namespace Control_De_Tareas.Controllers
 {
