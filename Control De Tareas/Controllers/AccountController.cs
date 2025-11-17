@@ -1,3 +1,4 @@
+using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
@@ -68,11 +69,12 @@ namespace Control_De_Tareas.Controllers
                 // Crear nuevo usuario
                 var newUser = new Users
                 {
-                    UserId = Guid.NewGuid(),
                     UserName = username,
+                    FullName = fullName,
                     Email = email,
                     PasswordHash = password, // TODO: Usar hash en producción
-                    CreateAt = DateTime.Now,
+                    CreatedAt = DateTime.Now,
+                    IsEnabled = true,
                     IsSoftDeleted = false
                 };
 
@@ -82,16 +84,15 @@ namespace Control_De_Tareas.Controllers
 
                 // Asignar rol por defecto (ejemplo: "Estudiante")
                 var defaultRole = await _context.Roles
-                    .FirstOrDefaultAsync(r => r.RoleName == "Estudiante" && !r.IsSoftDeleted);
+                    .FirstOrDefaultAsync(r => r.Name == "Estudiante" && !r.IsSoftDeleted);
 
                 if (defaultRole != null)
                 {
                     var userRole = new UserRoles
                     {
-                        UserRoleId = Guid.NewGuid(),
-                        UserId = newUser.UserId,
-                        RoleId = defaultRole.RoleId,
-                        CreateAt = DateTime.Now,
+                        UserId = newUser.Id,
+                        RoleId = defaultRole.Id,
+                        AssignedAt = DateTime.Now,
                         IsSoftDeleted = false
                     };
 
@@ -147,7 +148,7 @@ namespace Control_De_Tareas.Controllers
                 {
                     // Obtener el rol del usuario
                     var userRole = user.UserRoles.FirstOrDefault()?.Role;
-                    
+
                     if (userRole == null)
                     {
                         ViewBag.Error = "Usuario sin rol asignado";
@@ -159,8 +160,8 @@ namespace Control_De_Tareas.Controllers
                     {
                         new Claim(ClaimTypes.Name, user.UserName),
                         new Claim(ClaimTypes.Email, user.Email),
-                        new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                        new Claim(ClaimTypes.Role, userRole.RoleName)
+                        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                        new Claim(ClaimTypes.Role, userRole.Name)
                     };
 
                     // Crear identidad y principal
