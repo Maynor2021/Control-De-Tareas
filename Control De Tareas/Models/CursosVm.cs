@@ -7,11 +7,11 @@ namespace Control_De_Tareas.Models
 
     public class CursoDto
     {
-        public Guid Id { get; set; }
+        public int Id { get; set; }
         public string Codigo { get; set; } = string.Empty;
         public string Nombre { get; set; } = string.Empty;
         public string InstructorNombre { get; set; } = string.Empty;
         public int CantidadEstudiantes { get; set; }
-        public string Estado { get; set; } = "Activo";
+        public string Estado { get; set; } = string.Empty;
     }
 }

@@ -1,17 +1,15 @@
-﻿namespace Control_De_Tareas.Data.Entitys
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Control_De_Tareas.Data.Entitys
 {
+    [Table("Roles")]
     public class Roles
     {
-        public Guid RoleId { get; set; }
-        public string RoleName { get; set; }
-        public string Description { get; set; }
-        public DateTime CreateAt { get; set; }
-        public Boolean IsSoftDeleted { get; set; }
-
-
-
-        public ICollection<UserRoles> UserRoles { get; set; }
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsSoftDeleted { get; set; }
+        public ICollection<UserRoles> UserRoles { get; set; } = new List<UserRoles>();
     }
-
-
 }
