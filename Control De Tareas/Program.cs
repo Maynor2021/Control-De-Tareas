@@ -11,22 +11,17 @@ builder.Services.AddHttpContextAccessor();
 // Configuración de la base de datos
 builder.Services.AddDbContext<Context>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddHttpContextAccessor();
 
-// ========== CONFIGURACIÓN DE AUTENTICACIÓN Y AUTORIZACIÓN ==========
-builder.Services.AddAuthentication("CookieAuth")
-    .AddCookie("CookieAuth", options =>
+builder.Services.AddSession(opciones =>
     {
         options.LoginPath = "/Home/Login";
-        options.AccessDeniedPath = "/Error/Error403";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-    });
+    opciones.Cookie.HttpOnly = true;
+    opciones.Cookie.IsEssential = true;
+}
+    );
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("Admin", policy => policy.RequireRole("Administrador"));
-    options.AddPolicy("Profesor", policy => policy.RequireRole("Profesor"));
-    options.AddPolicy("Estudiante", policy => policy.RequireRole("Estudiante"));
-});
+
 
 var app = builder.Build();
 
@@ -42,8 +37,9 @@ app.UseStaticFiles();
 app.UseRouting();
 
 // ¡IMPORTANTE! Authentication ANTES de Authorization
-app.UseAuthentication();
+
 app.UseAuthorization();
+app.UseSession();
 
 // Manejar errores 403/404
 app.UseStatusCodePagesWithReExecute("/Error/{0}");

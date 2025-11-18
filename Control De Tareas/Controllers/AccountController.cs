@@ -132,75 +132,26 @@ namespace Control_De_Tareas.Controllers
             return RedirectToAction("Login", "Home");
         }
 
-        /// <summary>
-        /// Procesar login
-        /// </summary>
-        [HttpPost]
-        public async Task<IActionResult> Login(string email, string password)
-        {
-            try
-            {
-                // Buscar usuario por email
-                var user = await _context.Users
-                    .Include(u => u.Rol)
-                    .FirstOrDefaultAsync(u => u.Email == email && !u.IsSoftDeleted);
 
-                // Validar usuario y contraseña
-                if (user != null && user.PasswordHash == password) // TODO: Usar hash en producción
-                {
-                    // Obtener el rol del usuario
-<<<<<<< HEAD
-                    var userRole = user.Rol?.RoleName;
                     
 =======
                     var userRole = user.UserRoles.FirstOrDefault()?.Role;
 
->>>>>>> 33251b12da292b3cd7aa9f4be08621805c2e0e30
-                    if (userRole == null)
-                    {
-                        TempData["Error"] = "Usuario sin rol asignado";
-                        return RedirectToAction("Login", "Home");
                     }
 
-                    // Crear claims (información del usuario)
-                    var claims = new List<Claim>
+        private string GetMD5(string str)
                     {
-                        new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                        new Claim(ClaimTypes.Name, user.UserName),
-                        new Claim(ClaimTypes.Email, user.Email),
-<<<<<<< HEAD
-                        new Claim(ClaimTypes.Role, userRole)
-=======
-                        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                        new Claim(ClaimTypes.Role, userRole.Name)
->>>>>>> 33251b12da292b3cd7aa9f4be08621805c2e0e30
-                    };
-
-                    // Crear identidad y principal
-                    var identity = new ClaimsIdentity(claims, "CookieAuth");
-                    var principal = new ClaimsPrincipal(identity);
-
-                    // Crear sesión (Cookie)
-                    await HttpContext.SignInAsync("CookieAuth", principal, new AuthenticationProperties
+            using (var md5 = MD5.Create())
                     {
-                        IsPersistent = true, // Recordar sesión
-                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                    });
+                var encoding = new ASCIIEncoding();
+                byte[] stream = md5.ComputeHash(encoding.GetBytes(str));
+                var sb = new StringBuilder();
 
-                    _logger.LogInformation($"Usuario {user.UserName} inició sesión correctamente");
+                for (int i = 0; i < stream.Length; i++)
+                    sb.AppendFormat("{0:x2}", stream[i]);
 
-                    return RedirectToAction("Index", "Home");
-                }
-
-                TempData["Error"] = "Email o contraseña incorrectos";
+                return sb.ToString();
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error en el proceso de login");
-                TempData["Error"] = "Error al iniciar sesión. Intente nuevamente.";
-            }
-
-            return RedirectToAction("Login", "Home");
         }
 
         /// <summary>
