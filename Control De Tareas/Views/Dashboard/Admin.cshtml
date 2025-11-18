@@ -1,0 +1,73 @@
+﻿@model dynamic
+@{
+    ViewData["Title"] = "Dashboard Administrador";
+}
+
+<div class="dashboard-header mb-4">
+    <h2 class="fw-bold">Panel de Administrador</h2>
+    <p class="text-muted">Resumen general del sistema</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body text-center">
+                <h3 class="fw-bold">@Model.TotalUsuarios</h3>
+                <p class="text-muted">Usuarios Registrados</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body text-center">
+                <h3 class="fw-bold">@Model.TotalCursos</h3>
+                <p class="text-muted">Cursos Activos</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body text-center">
+                <h3 class="fw-bold">@Model.TotalTareas</h3>
+                <p class="text-muted">Tareas Creadas</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Últimas entregas -->
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-body">
+        <h5 class="fw-bold">Últimas Entregas</h5>
+
+        @if (Model.UltimasEntregas == null || Model.UltimasEntregas.Count == 0)
+        {
+            <p class="text-muted mt-3">No hay entregas recientes.</p>
+        }
+        else
+        {
+            <table class="table table-striped mt-3">
+                <thead>
+                    <tr>
+                        <th>Estudiante</th>
+                        <th>Tarea</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.UltimasEntregas)
+                    {
+                        <tr>
+                            <td>@s.Student.UserName</td>
+                            <td>@s.Task.Title</td>
+                            <td>@s.SubmittedAt.ToString("dd/MM/yyyy hh:mm tt")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

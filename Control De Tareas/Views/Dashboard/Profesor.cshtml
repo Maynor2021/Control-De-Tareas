@@ -1,0 +1,52 @@
+﻿@model dynamic
+@{
+    ViewData["Title"] = "Dashboard Profesor";
+}
+
+<div class="dashboard-header mb-4">
+    <h2 class="fw-bold">Panel del Profesor</h2>
+    <p class="text-muted">Resumen de cursos y tareas</p>
+</div>
+
+<!-- Cards resumen -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h3 class="fw-bold">@Model.Cursos.Count</h3>
+                <p class="text-muted">Cursos Asignados</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h3 class="fw-bold">@Model.PendientesPorCalificar.Count</h3>
+                <p class="text-muted">Pendientes de Calificar</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista cursos -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <h5 class="fw-bold">Mis Cursos</h5>
+        <ul class="list-group mt-3">
+            @foreach (var c in Model.Cursos)
+            {
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>@c.Course.Title (@c.Section)</span>
+                    <a class="btn btn-sm btn-primary" asp-controller="Cursos" asp-action="Detalles" asp-route-id="@c.Id">Ver</a>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
+
+<!-- Acciones -->
+<div class="mt-4 text-center">
+    <a class="btn btn-success me-2" asp-controller="Cursos" asp-action="Crear">Crear Curso</a>
+    <a class="btn btn-primary" asp-controller="Tareas" asp-action="Crear">Crear Tarea</a>
+</div>
