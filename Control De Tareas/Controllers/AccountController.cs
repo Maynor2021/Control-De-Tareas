@@ -28,7 +28,8 @@ namespace Control_De_Tareas.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
-            return View();
+            // Redirigir a la vista de Home/Login
+            return RedirectToAction("Login", "Home");
         }
 
         /// <summary>
@@ -41,29 +42,28 @@ namespace Control_De_Tareas.Controllers
             {
                 // Buscar usuario por email
                 var user = await _context.Users
-                    .Include(u => u.UserRoles)
-                        .ThenInclude(ur => ur.Role)
+                    .Include(u => u.Rol)
                     .FirstOrDefaultAsync(u => u.Email == email && !u.IsSoftDeleted);
 
                 // Validar usuario y contraseña
                 if (user != null && user.PasswordHash == password) // TODO: Usar hash en producción
                 {
                     // Obtener el rol del usuario
-                    var userRole = user.UserRoles.FirstOrDefault()?.Role;
+                    var userRole = user.Rol?.RoleName;
                     
                     if (userRole == null)
                     {
-                        ViewBag.Error = "Usuario sin rol asignado";
-                        return View();
+                        TempData["Error"] = "Usuario sin rol asignado";
+                        return RedirectToAction("Login", "Home");
                     }
 
                     // Crear claims (información del usuario)
                     var claims = new List<Claim>
                     {
+                        new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
                         new Claim(ClaimTypes.Name, user.UserName),
                         new Claim(ClaimTypes.Email, user.Email),
-                        new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                        new Claim(ClaimTypes.Role, userRole.RoleName)
+                        new Claim(ClaimTypes.Role, userRole)
                     };
 
                     // Crear identidad y principal
@@ -82,15 +82,15 @@ namespace Control_De_Tareas.Controllers
                     return RedirectToAction("Index", "Home");
                 }
 
-                ViewBag.Error = "Email o contraseña incorrectos";
+                TempData["Error"] = "Email o contraseña incorrectos";
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error en el proceso de login");
-                ViewBag.Error = "Error al iniciar sesión. Intente nuevamente.";
+                TempData["Error"] = "Error al iniciar sesión. Intente nuevamente.";
             }
 
-            return View();
+            return RedirectToAction("Login", "Home");
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace Control_De_Tareas.Controllers
         {
             await HttpContext.SignOutAsync("CookieAuth");
             _logger.LogInformation("Usuario cerró sesión");
-            return RedirectToAction("Login");
+            return RedirectToAction("Login", "Home");
         }
 
         /// <summary>

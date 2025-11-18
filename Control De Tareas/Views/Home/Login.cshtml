@@ -65,24 +65,24 @@
     <div class="container d-flex justify-content-center align-items-center" style="height: 90vh;">
         <div class="col-md-5 col-sm-8 auth-card2 mx-auto">
             <h3 class="text-center mb-4 text-primary fw-bold">Iniciar Sesión</h3>
-            <form method="post" asp-action="Login">
+            <form method="post" asp-controller="Account" asp-action="Login">
                 <div class="mb-3">
                     <label class="form-label">Email</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
-                        <input type="email" class="form-control" name="Email" required placeholder="Correo electrónico" />
+                        <input type="email" class="form-control" name="email" required placeholder="Correo electrónico" />
                     </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Password</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                        <input type="password" class="form-control" name="Password" required placeholder="Contraseña" />
+                        <input type="password" class="form-control" name="password" required placeholder="Contraseña" />
                     </div>
                 </div>
-                @if (ViewBag.Error != null)
+                @if (TempData["Error"] != null)
                 {
-                    <div class="alert alert-danger mt-3 mb-0 text-center">@ViewBag.Error</div>
+                    <div class="alert alert-danger mt-3 mb-0 text-center">@TempData["Error"]</div>
                 }
                 <button class="btn btn-primary w-100 mt-2">Ingresar</button>
             </form>

@@ -11,10 +11,20 @@ namespace Control_De_Tareas.Data.Entitys
 
         public DbSet<Users> Users { get; set; }
         public DbSet<Roles> Roles { get; set; }
-        public DbSet<UserRoles> UserRoles { get; set; }
+     
         public DbSet<Tareas> Tareas { get; set; }
         public DbSet<Submissions> Submissions { get; set; }
         public DbSet<Courses> Courses { get; set; }
+
+        public DbSet<Module> Module { get; set; }
+
+        public DbSet<ModuleGroup> ModuleGroup { get; set; }
+
+        public DbSet<RoleModules> RoleModules { get; set; }
+
+
+
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -26,6 +36,10 @@ namespace Control_De_Tareas.Data.Entitys
             modelBuilder.ApplyConfiguration(new Configurations.CoursesConfig());
             modelBuilder.ApplyConfiguration(new Configurations.TareasConfig());
             modelBuilder.ApplyConfiguration(new Configurations.SubmissionsConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.ModuleGroupConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.RoleModulesConfig());
+          
+
         }
 
     }

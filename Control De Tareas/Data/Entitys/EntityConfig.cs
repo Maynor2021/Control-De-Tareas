@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Control_De_Tareas.Data.Entitys;
 
@@ -10,7 +10,7 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Tareas> builder)
         {
-            
+
             builder.HasKey(t => t.Id);
 
             builder.Property(t => t.Title)
@@ -23,7 +23,7 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(t => t.DueDate)
                    .IsRequired();
 
-         
+
             builder.Property(p => p.MaxScore).IsRequired().HasPrecision(18, 2);
 
             builder.HasOne(t => t.Course)
@@ -58,9 +58,9 @@ namespace Control_De_Tareas.Data.Configurations
                    .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(c => c.Tareas)
-                   .WithOne(t => t.Course) // Asumiendo que Tareas tiene propiedad 'Course'
+                   .WithOne(t => t.Course)
                    .HasForeignKey(t => t.CourseId)
-                   .OnDelete(DeleteBehavior.Cascade); // Borra tareas si se borra el curso
+                   .OnDelete(DeleteBehavior.Cascade);
 
 
         }
@@ -86,10 +86,15 @@ namespace Control_De_Tareas.Data.Configurations
                    .IsRequired()
                    .HasDefaultValueSql("GETDATE()");
 
-            builder.HasMany(r => r.UserRoles)
-                   .WithOne(ur => ur.Role)
-                   .HasForeignKey(ur => ur.RoleId)
-                   .OnDelete(DeleteBehavior.Cascade);
+            // RELACIONES
+            builder.HasMany(r => r.RoleModules)
+                   .WithOne(rm => rm.Role)
+                   .HasForeignKey(rm => rm.RoleId);
+
+            builder.HasMany(r => r.Users)
+                   .WithOne(u => u.Rol)
+                   .HasForeignKey(u => u.RolId);
+
         }
     }
 
@@ -151,13 +156,14 @@ namespace Control_De_Tareas.Data.Configurations
             builder.HasIndex(ur => new { ur.UserId, ur.RoleId });
         }
     }
+
     public class SubmissionsConfig : IEntityTypeConfiguration<Submissions>
     {
         public void Configure(EntityTypeBuilder<Submissions> builder)
         {
             builder.HasKey(s => s.Id);
 
-        
+
             builder.Property(s => s.TareaId)
                    .IsRequired();
 
@@ -169,30 +175,59 @@ namespace Control_De_Tareas.Data.Configurations
                    .HasDefaultValueSql("GETDATE()");
 
             builder.Property(s => s.CurrentGrade)
-                   .HasColumnType("decimal(5,2)") 
+                   .HasColumnType("decimal(5,2)")
                    .IsRequired();
 
             builder.Property(s => s.Comments)
                    .HasMaxLength(1000)
                    .IsRequired(false);
 
-      
+
             builder.HasOne(s => s.Tarea)
-                   .WithMany(t => t.Submissions) 
+                   .WithMany(t => t.Submissions)
                    .HasForeignKey(s => s.TareaId)
-                   .OnDelete(DeleteBehavior.Cascade); 
+                   .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(s => s.Student)
-                   .WithMany() 
+                   .WithMany()
                    .HasForeignKey(s => s.StudentId)
-                   .OnDelete(DeleteBehavior.Restrict); 
+                   .OnDelete(DeleteBehavior.Restrict);
 
 
             builder.HasIndex(s => s.TareaId);
             builder.HasIndex(s => s.StudentId);
             builder.HasIndex(s => s.SubmittedAt);
 
-         
+
+        }
+    }
+
+    public class ModuleGroupConfig : IEntityTypeConfiguration<ModuleGroup>
+    {
+        public void Configure(EntityTypeBuilder<ModuleGroup> builder)
+        {
+            builder.HasKey(mg => mg.GroupModuleId);
+            builder.Property(mg => mg.Description).IsRequired().HasMaxLength(200);
+            builder.Property(mg => mg.CreateAt).IsRequired().HasDefaultValueSql("GETDATE()");
+            builder.HasMany(mg => mg.Modules).WithOne(m => m.ModuloAgrupado).HasForeignKey(m => m.ModuloAgrupadoId).OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+
+    public class ModuleConfig : IEntityTypeConfiguration<Module>
+    {
+        public void Configure(EntityTypeBuilder<Module> builder)
+        {
+            builder.HasKey(m => m.ModuleId);
+            builder.HasMany(m => m.RoleModules).WithOne(rm => rm.Module).HasForeignKey(rm => rm.ModuleId);
+        }
+    }
+
+    public class RoleModulesConfig : IEntityTypeConfiguration<RoleModules>
+    {
+        public void Configure(EntityTypeBuilder<RoleModules> builder)
+        {
+            builder.HasKey(mr => mr.ModuleRoleId);
         }
     }
 }
