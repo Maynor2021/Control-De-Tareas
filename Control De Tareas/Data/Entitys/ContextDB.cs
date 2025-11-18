@@ -3,9 +3,9 @@ using Control_De_Tareas.Data.Entitys;
 
 namespace Control_De_Tareas.Data.Entitys
 {
-    public class Context : DbContext
+    public class ContextDB : DbContext
     {
-        public Context(DbContextOptions<Context> options) : base(options)
+        public ContextDB(DbContextOptions<ContextDB> options) : base(options)
         {
         }
 

@@ -4,6 +4,7 @@ using Control_De_Tareas.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Control_De_Tareas.Migrations
 {
     [DbContext(typeof(Context))]
-    partial class ContextModelSnapshot : ModelSnapshot
+    [Migration("20251116185646_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -63,130 +66,7 @@ namespace Control_De_Tareas.Migrations
                     b.ToTable("Announcements", (string)null);
                 });
 
-<<<<<<< HEAD
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Module", b =>
-                {
-                    b.Property<Guid>("ModuleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Controller")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("CreatBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreateAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsSoftDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Metodo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("ModifieBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ModuloAgrupadoId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("ModuleId");
-
-                    b.HasIndex("ModuloAgrupadoId");
-
-                    b.ToTable("Module");
-                });
-
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.ModuleGroup", b =>
-                {
-                    b.Property<Guid>("GroupModuleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("CreatBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreateAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
-
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("IsSoftDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("ModifieBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("RolId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("GroupModuleId");
-
-                    b.ToTable("ModuleGroup");
-                });
-
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.RoleModules", b =>
-                {
-                    b.Property<Guid>("ModuleRoleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("CreatBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreateAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsSoftDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("ModifieBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ModuleId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("ModuleRoleId");
-
-                    b.HasIndex("ModuleId");
-
-                    b.HasIndex("RoleId");
-
-                    b.ToTable("RoleModules");
-                });
-
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Roles", b =>
-=======
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.AuditLogs", b =>
->>>>>>> 33251b12da292b3cd7aa9f4be08621805c2e0e30
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -345,15 +225,8 @@ namespace Control_De_Tareas.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasDefaultValue("Active");
 
-<<<<<<< HEAD
-                    b.Property<Guid>("modifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("RoleId");
-=======
                     b.Property<int>("StudentId")
                         .HasColumnType("int");
->>>>>>> 33251b12da292b3cd7aa9f4be08621805c2e0e30
 
                     b.HasKey("Id");
 
@@ -645,16 +518,9 @@ namespace Control_De_Tareas.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-<<<<<<< HEAD
-                    b.Property<Guid>("CreatBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreateAt")
-=======
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
->>>>>>> 33251b12da292b3cd7aa9f4be08621805c2e0e30
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETDATE()");
@@ -678,16 +544,10 @@ namespace Control_De_Tareas.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
-                    b.Property<Guid>("ModifieBy")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
-
-                    b.Property<Guid>("RolId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("UserName")
                         .IsRequired()
@@ -699,13 +559,7 @@ namespace Control_De_Tareas.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-<<<<<<< HEAD
-                    b.HasIndex("RolId");
-
-                    b.ToTable("Users");
-=======
                     b.ToTable("Users", (string)null);
->>>>>>> 33251b12da292b3cd7aa9f4be08621805c2e0e30
                 });
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Announcements", b =>
@@ -716,50 +570,9 @@ namespace Control_De_Tareas.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-<<<<<<< HEAD
-                    b.Navigation("Instructor");
-                });
-
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Module", b =>
-                {
-                    b.HasOne("Control_De_Tareas.Data.Entitys.ModuleGroup", "ModuloAgrupado")
-                        .WithMany("Modules")
-                        .HasForeignKey("ModuloAgrupadoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ModuloAgrupado");
-                });
-
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.RoleModules", b =>
-                {
-                    b.HasOne("Control_De_Tareas.Data.Entitys.Module", "Module")
-                        .WithMany("RoleModules")
-                        .HasForeignKey("ModuleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Control_De_Tareas.Data.Entitys.Roles", "Role")
-                        .WithMany("RoleModules")
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Module");
-
-                    b.Navigation("Role");
-                });
-
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Submissions", b =>
-                {
-                    b.HasOne("Control_De_Tareas.Data.Entitys.Users", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-=======
                     b.HasOne("Control_De_Tareas.Data.Entitys.Users", "PostedByUser")
                         .WithMany("Announcements")
                         .HasForeignKey("PostedBy")
->>>>>>> 33251b12da292b3cd7aa9f4be08621805c2e0e30
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -911,22 +724,7 @@ namespace Control_De_Tareas.Migrations
                     b.Navigation("User");
                 });
 
-<<<<<<< HEAD
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Users", b =>
-                {
-                    b.HasOne("Control_De_Tareas.Data.Entitys.Roles", "Rol")
-                        .WithMany("Users")
-                        .HasForeignKey("RolId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Rol");
-                });
-
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Courses", b =>
-=======
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.CourseOfferings", b =>
->>>>>>> 33251b12da292b3cd7aa9f4be08621805c2e0e30
                 {
                     b.Navigation("Announcements");
 
@@ -935,29 +733,14 @@ namespace Control_De_Tareas.Migrations
                     b.Navigation("Tareas");
                 });
 
-<<<<<<< HEAD
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Module", b =>
-                {
-                    b.Navigation("RoleModules");
-                });
-
-            modelBuilder.Entity("Control_De_Tareas.Data.Entitys.ModuleGroup", b =>
-                {
-                    b.Navigation("Modules");
-=======
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Periods", b =>
                 {
                     b.Navigation("CourseOfferings");
->>>>>>> 33251b12da292b3cd7aa9f4be08621805c2e0e30
                 });
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Roles", b =>
                 {
-                    b.Navigation("RoleModules");
-
                     b.Navigation("UserRoles");
-
-                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Submissions", b =>

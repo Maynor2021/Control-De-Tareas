@@ -1,3 +1,4 @@
+using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,8 +8,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 
+// Configuración de la base de datos
 builder.Services.AddDbContext<Context>(options =>
-      options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ========== CONFIGURACIÓN DE AUTENTICACIÓN Y AUTORIZACIÓN ==========
 builder.Services.AddAuthentication("CookieAuth")

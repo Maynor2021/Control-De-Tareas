@@ -7,7 +7,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Iniciar Sesión | Control De Tareas</title>
+    <title>Verificar código | Control De Tareas</title>
     <!-- Bootstrap 5 CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons CDN -->
@@ -64,34 +64,36 @@
     <div class="topbar">Control De Tareas</div>
     <div class="container d-flex justify-content-center align-items-center" style="height: 90vh;">
         <div class="col-md-5 col-sm-8 auth-card2 mx-auto">
-            <h3 class="text-center mb-4 text-primary fw-bold">Iniciar Sesión</h3>
-            <form method="post" asp-controller="Account" asp-action="Login">
+            <h3 class="text-center mb-3 text-primary fw-bold">Verificar código</h3>
+            <p class="text-center text-secondary">Ingresa el código de 6 dígitos que recibiste por correo</p>
+            @if (ViewBag.Message != null)
+            {
+                <div class="alert alert-success mb-3 text-center">@ViewBag.Message</div>
+            }
+            <form method="post" asp-action="VerificarCodigo">
                 <div class="mb-3">
-                    <label class="form-label">Email</label>
+                    <label class="form-label">Correo electrónico</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
-                        <input type="email" class="form-control" name="email" required placeholder="Correo electrónico" />
+                        <input type="email" class="form-control" name="Email" value="@ViewBag.Email" readonly />
                     </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Password</label>
+                    <label class="form-label">Código de verificación</label>
                     <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                        <input type="password" class="form-control" name="password" required placeholder="Contraseña" />
+                        <span class="input-group-text"><i class="bi bi-key"></i></span>
+                        <input type="text" class="form-control" name="Codigo" maxlength="6" required placeholder="Código de 6 dígitos" />
                     </div>
                 </div>
-                @if (TempData["Error"] != null)
-                {
-                    <div class="alert alert-danger mt-3 mb-0 text-center">@TempData["Error"]</div>
-                }
-                <button class="btn btn-primary w-100 mt-2">Ingresar</button>
+                <button class="btn btn-primary w-100 mt-2">Continuar</button>
             </form>
             <div class="text-center mt-3">
-                <a asp-action="Register" class="auth-link text-decoration-none">Crear una cuenta</a>
-                <br />
-                <a asp-action="PasswordRecovery" class="auth-link text-decoration-none">¿Olvidaste tu contraseña?</a>
+                <a asp-action="ReenviarCodigo" class="auth-link text-decoration-none">Volver a enviar código</a>
+                <span class="mx-2">·</span>
+                <a asp-action="Login" class="auth-link text-decoration-none">Iniciar sesión</a>
             </div>
         </div>
     </div>
 </body>
 </html>
+

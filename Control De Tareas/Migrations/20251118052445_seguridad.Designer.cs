@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Control_De_Tareas.Migrations
 {
-    [DbContext(typeof(Context))]
+    [DbContext(typeof(ContextDB))]
     [Migration("20251118052445_seguridad")]
     partial class seguridad
     {
