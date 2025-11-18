@@ -1,30 +1,36 @@
 ﻿# 📘 Plataforma de Control de Tareas – ASP.NET Core 8
 
 Aplicación web desarrollada en **ASP.NET Core 8 (MVC)** para la gestión de cursos, tareas, roles, entregas y calificaciones.  
-Es un proyecto académico desarrollado por un equipo, con soporte para profesor, estudiante y administrador.
+Incluye autenticación por roles, navegación dinámica y administración educativa básica.  
+Proyecto académico colaborativo desarrollado en equipo.
 
 ---
 
 ## 🧩 Funcionalidades principales
 
-### 👤 Autenticación y Roles  
-- Login con Claims y Cookies  
-- Roles: **admin, profesor, estudiante**  
-- Autorización mediante atributos personalizados:
+### 👤 Autenticación y Roles
+- Login con Claims + Cookies  
+- Logout con limpieza de sesión  
+- Roles:
+  - Administrador  
+  - Profesor  
+  - Estudiante  
+- Atributos personalizados de autorización:
   - `[ProfesorAuthorize]`
   - `[EstudianteAuthorize]`
   - `[ProfesorOAdminAuthorize]`
 
 ### 📚 Gestión Académica
-- Cursos
-- Tareas
-- Entregas (Submissions)
-- Calificaciones
+- Cursos  
+- Tareas  
+- Entregas de estudiantes (Submissions)  
+- Calificaciones  
 
-### 🧭 Menú dinámico (según rol)
-Administrado por `MenuServices` y `MenuItem`.
+### 🧭 Menú dinámico según rol
+Renderizado desde `MenuServices` y `MenuItem`, mostrando solo las opciones permitidas.
 
 ### 💾 Base de Datos
+Tablas incluidas:
 - Users  
 - Roles  
 - UserRoles  
@@ -32,7 +38,8 @@ Administrado por `MenuServices` y `MenuItem`.
 - Tareas  
 - Submissions  
 
-Usando **Entity Framework Core 9** con configuraciones individuales en la carpeta:
+Configuraciones dentro de:
+
 ```
 Data/Configurations/
 ```
@@ -47,27 +54,30 @@ Data/Configurations/
 - **SQL Server 2019+**
 - **Bootstrap 5**
 - **jQuery**
-- **EF Migrations**
 - **Git & GitHub**
+- **EF Migrations**
 
 ---
 
 ## ⚙️ Instalación del proyecto
 
 ### 1️⃣ Clonar el repositorio
+
 ```bash
 git clone https://github.com/Maynor2021/Control-De-Tareas.git
 ```
 
-### 2️⃣ Abrir el proyecto
-Abrir en Visual Studio 2022:
+### 2️⃣ Abrir en Visual Studio
+
+Archivo a abrir:
 
 ```
 Control De Tareas.sln
 ```
 
-### 3️⃣ Configurar la base de datos
-Editar `appsettings.json` con tu propio servidor local:
+### 3️⃣ Configurar cadena de conexión
+
+Editar tu `appsettings.json` (local, NO subirlo):
 
 ```json
 "ConnectionStrings": {
@@ -75,8 +85,8 @@ Editar `appsettings.json` con tu propio servidor local:
 }
 ```
 
-📌 *Nota:* Cada desarrollador usa su propia cadena de conexión.  
-**NO se debe subir appsettings.json al repositorio.**
+📌 *Cada desarrollador usa su propia conexión.*  
+📌 **No subir appsettings.json al repositorio.**
 
 ---
 
@@ -99,23 +109,37 @@ Remove-Migration
 
 ---
 
-## 👥 Usuarios de prueba (placeholder)
+# 👥 **Usuarios de prueba del sistema**
 
-Pendiente de definir por el equipo. Ejemplo:
+A continuación, las credenciales utilizadas en el proyecto:
 
-```
-Administrador:
-Email: admin@demo.com
-Password: Admin123
+---
 
-Profesor:
-Email: profesor@demo.com
-Password: Profe123
+## 🟥 **Administrador**
+- **Correo:** `admin@sistema.com`  
+- **Contraseña:** `Admin123!`
 
-Estudiante:
-Email: estudiante@demo.com
-Password: Estu123
-```
+---
+
+## 🟦 **Profesores**
+
+- `maria.gonzalez@sistema.com` — **Profesor123!**  
+- `carlos.rodriguez@sistema.com` — **Profesor123!**  
+- `ana.lopez@sistema.com` — **Profesor123!**  
+- `jose.martinez@sistema.com` — **Profesor123!**
+
+---
+
+## 🟩 **Estudiantes**
+
+- `ana.martinez@sistema.com` — **Estudiante123!**  
+- `luis.hernandez@sistema.com` — **Estudiante123!**  
+- `sofia.ramirez@sistema.com` — **Estudiante123!**  
+- `carlos.garcia@sistema.com` — **Estudiante123!**  
+- `marta.lopez@sistema.com` — **Estudiante123!**  
+- `pedro.sanchez@sistema.com` — **Estudiante123!**  
+- `laura.diaz@sistema.com` — **Estudiante123!**  
+- `david.torres@sistema.com` — **Estudiante123!**
 
 ---
 
@@ -125,4 +149,5 @@ Proyecto grupal del curso **Desarrollo de Aplicaciones Web – Sprint 1**.
 ---
 
 ## 📄 Licencia
-Proyecto académico. Uso interno del equipo.
+Proyecto académico — uso interno del equipo.
+
