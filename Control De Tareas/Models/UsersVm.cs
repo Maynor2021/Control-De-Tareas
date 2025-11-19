@@ -5,8 +5,8 @@ namespace Control_De_Tareas.Models
     public class UserVm
     {
         public Guid UserId { get; set; }
-        public string Username { get; set; }
-        public string FullName { get; set; }
+        public string Nombre { get; set; }
+
 
         [EmailAddress(ErrorMessage = "Formato de email inválido")]
         public string Email { get; set; }
@@ -16,6 +16,6 @@ namespace Control_De_Tareas.Models
         public string Password { get; set; }
 
       public RolVm Rol { get; set; }
-        public List<ModuleGroupVm> mewnu { get; set; }
+        public List<ModuleGroupVm> menu { get; set; }
     }
 }

@@ -14,8 +14,8 @@ builder.Services.AddDbContext<Context>(options =>
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSession(opciones =>
-    {
-        options.LoginPath = "/Home/Login";
+{
+    opciones.IdleTimeout = TimeSpan.FromMinutes(15);    
     opciones.Cookie.HttpOnly = true;
     opciones.Cookie.IsEssential = true;
 }
