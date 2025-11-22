@@ -4,6 +4,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using Newtonsoft.Json;
+using Mapster;
+using Control_De_Tareas.ViewsModels;
 
 namespace Control_De_Tareas.Controllers
 {
@@ -133,62 +138,58 @@ namespace Control_De_Tareas.Controllers
         /// Procesar login
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> Login(string email, string password)
+        public IActionResult Login(UserVm usersV)
         {
-            try
+            var user = _context.Users.Where(u => u.Email == usersV.Email && u.IsSoftDeleted == false).ProjectToType<UserVm>().FirstOrDefault();
+
+            // Validar que el usuario exista
+            if (user == null)
             {
-                // Buscar usuario por email
-                var user = await _context.Users
-                    .Include(u => u.UserRoles)
-                        .ThenInclude(ur => ur.Role)
-                    .FirstOrDefaultAsync(u => u.Email == email && !u.IsSoftDeleted);
-
-                // Validar usuario y contraseña
-                if (user != null && user.PasswordHash == password) // TODO: Usar hash en producción
-                {
-                    // Obtener el rol del usuario
-                    var userRole = user.UserRoles.FirstOrDefault()?.Role;
-
-                    if (userRole == null)
-                    {
-                        ViewBag.Error = "Usuario sin rol asignado";
-                        return View();
-                    }
-
-                    // Crear claims (información del usuario)
-                    var claims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Name, user.UserName),
-                        new Claim(ClaimTypes.Email, user.Email),
-                        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                        new Claim(ClaimTypes.Role, userRole.Name)
-                    };
-
-                    // Crear identidad y principal
-                    var identity = new ClaimsIdentity(claims, "CookieAuth");
-                    var principal = new ClaimsPrincipal(identity);
-
-                    // Crear sesión (Cookie)
-                    await HttpContext.SignInAsync("CookieAuth", principal, new AuthenticationProperties
-                    {
-                        IsPersistent = true, // Recordar sesión
-                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                    });
-
-                    _logger.LogInformation($"Usuario {user.UserName} inició sesión correctamente");
-
-                    return RedirectToAction("Index", "Home");
-                }
-
-                ViewBag.Error = "Email o contraseña incorrectos";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error en el proceso de login");
-                ViewBag.Error = "Error al iniciar sesión. Intente nuevamente.";
+                ViewBag.Error = "usuario o contraseña incorrectos";
+                return View(new UserVm());
             }
 
-            return View();
+            usersV.Password = GetMD5(usersV.Password);
+
+            if (user.Password != usersV.Password)
+            {
+                ViewBag.Error = "usuario o contraseña incorrectos";
+                return View(new UserVm());
+            }
+
+            // Obtener los módulos del rol del usuario
+            var modulosRoles = _context.RoleModules.Where(rm => rm.IsSoftDeleted == false && rm.RoleId == user.Rol.RoleId).ProjectToType<RolModuloVM>().ToList();
+            var AgrupadosID = modulosRoles.Select(mr => mr.Modulo.ModuloAgrupadoId).Distinct().ToList();
+            var agrupados = _context.ModuleGroup.Where(ma => ma.IsSoftDeleted == false && AgrupadosID.Contains(ma.GroupModuleId)).ProjectToType<ModuleGroupVm>().ToList();
+            foreach (var Item in agrupados)
+            {
+                var modulosActuales = modulosRoles.Where(mr => mr.Modulo.ModuloAgrupadoId == Item.GroupModuleId).Select(s => s.Modulo.ModuleId).Distinct().ToList();
+                Item.Modulos = Item.Modulos.Where(m => modulosActuales.Contains(m.ModuleId)).ToList();
+            }
+
+            user.menu = agrupados;
+            user.Password = string.Empty;
+            var sesionJson = JsonConvert.SerializeObject(user);
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(sesionJson);
+            var sesionBase64 = System.Convert.ToBase64String(plainTextBytes);
+            HttpContext.Session.SetString("UserSession", sesionBase64);
+
+            return RedirectToAction("Index", "Home");
+        }
+
+        private string GetMD5(string str)
+        {
+            using (var md5 = MD5.Create())
+            {
+                var encoding = new ASCIIEncoding();
+                byte[] stream = md5.ComputeHash(encoding.GetBytes(str));
+                var sb = new StringBuilder();
+
+                for (int i = 0; i < stream.Length; i++)
+                    sb.AppendFormat("{0:x2}", stream[i]);
+
+                return sb.ToString();
+            }
         }
 
         /// <summary>
