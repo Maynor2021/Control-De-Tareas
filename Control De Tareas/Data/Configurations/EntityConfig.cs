@@ -426,4 +426,31 @@ namespace Control_De_Tareas.Data.Configurations
                    .OnDelete(DeleteBehavior.Restrict);
         }
     }
+    public class ModuleConfig : IEntityTypeConfiguration<Module>
+    {
+        public void Configure(EntityTypeBuilder<Module> builder)
+        {
+            builder.HasKey(m => m.ModuleId);
+            builder.HasMany(m => m.RoleModules).WithOne(rm => rm.Module).HasForeignKey(rm => rm.ModuleId);
+        }
+    }
+    public class RoleModulesConfig : IEntityTypeConfiguration<RoleModules>
+    {
+        public void Configure(EntityTypeBuilder<RoleModules> builder)
+        {
+            builder.HasKey(mr => mr.ModuleRoleId);
+        }
+    }
+    public class ModuleGroupConfig : IEntityTypeConfiguration<ModuleGroup>
+    {
+        public void Configure(EntityTypeBuilder<ModuleGroup> builder)
+        {
+            builder.HasKey(mg => mg.GroupModuleId);
+            builder.Property(mg => mg.Description).IsRequired().HasMaxLength(200);
+            builder.Property(mg => mg.CreateAt).IsRequired().HasDefaultValueSql("GETDATE()");
+            builder.HasMany(mg => mg.Modules).WithOne(m => m.ModuloAgrupado).HasForeignKey(m => m.ModuloAgrupadoId).OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+
 }

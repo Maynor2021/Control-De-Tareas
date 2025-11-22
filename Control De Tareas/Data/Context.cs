@@ -23,6 +23,10 @@ namespace Control_De_Tareas.Data
         public DbSet<Announcements> Announcements { get; set; }
         public DbSet<AuditLogs> AuditLogs { get; set; }
 
+        public DbSet<ModuleGroup> ModuleGroup { get; set; }
+
+        public DbSet<RoleModules> RoleModules { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -40,6 +44,16 @@ namespace Control_De_Tareas.Data
             modelBuilder.ApplyConfiguration(new Configurations.GradesConfig());
             modelBuilder.ApplyConfiguration(new Configurations.AnnouncementsConfig());
             modelBuilder.ApplyConfiguration(new Configurations.AuditLogsConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.UsersConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.RolesConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.UserRolesConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.CoursesConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.TareasConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.SubmissionsConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.ModuleGroupConfig());
+            modelBuilder.ApplyConfiguration(new Configurations.RoleModulesConfig());
+
+
         }
     }
 }

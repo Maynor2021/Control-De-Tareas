@@ -1,14 +1,15 @@
 using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
+using Control_De_Tareas.Models;
+
+using Mapster;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using Newtonsoft.Json;
-using Mapster;
-using Control_De_Tareas.ViewsModels;
 
 namespace Control_De_Tareas.Controllers
 {

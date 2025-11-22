@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Control_De_Tareas.Data.Entitys;
+using System.ComponentModel.DataAnnotations;
 
 namespace Control_De_Tareas.Models
 {
@@ -18,5 +19,8 @@ namespace Control_De_Tareas.Models
         public bool IsActiveBol { get; set; }
 
         public DateTime CreatedAt { get; set; }
+        
+        public RolVm Rol { get; set; }
+        public List<ModuleGroupVm> menu { get; set; }
     }
 }
