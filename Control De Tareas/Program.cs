@@ -1,6 +1,7 @@
 using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Microsoft.EntityFrameworkCore;
+using Control_De_Tareas; // 👈 Agregar namespace
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,8 +9,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 
+// Configurar Mapster
+MapsterConfig.Configure();
+
 // Configuración de la base de datos
-builder.Services.AddDbContext<Context>(options =>
+builder.Services.AddDbContext<ContextDB>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddHttpContextAccessor();
 

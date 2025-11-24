@@ -5,9 +5,9 @@ namespace Control_De_Tareas.Data.Entitys
     [Table("Submissions")]
     public class Submissions
     {
-        public int Id { get; set; }
-        public int TaskId { get; set; }
-        public int StudentId { get; set; }
+        public Guid Id { get; set; }
+        public Guid TaskId { get; set; }
+        public Guid StudentId { get; set; }
         public DateTime SubmittedAt { get; set; }
         public string? Comments { get; set; }
         public decimal? CurrentGrade { get; set; }

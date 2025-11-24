@@ -6,8 +6,8 @@ namespace Control_De_Tareas.Data.Entitys
     public class Grades
     {
         public int Id { get; set; }
-        public int SubmissionId { get; set; }
-        public int GraderId { get; set; }
+        public Guid SubmissionId { get; set; }
+        public Guid GraderId { get; set; }
         public decimal Score { get; set; }
         public string? Feedback { get; set; }
         public DateTime GradedAt { get; set; } = DateTime.Now;

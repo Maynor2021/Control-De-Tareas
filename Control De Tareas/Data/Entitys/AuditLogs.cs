@@ -6,7 +6,7 @@ namespace Control_De_Tareas.Data.Entitys
     public class AuditLogs
     {
         public long Id { get; set; }
-        public int? UserId { get; set; }
+        public Guid? UserId { get; set; }
         public string? Action { get; set; }
         public string? Entity { get; set; }
         public int? EntityId { get; set; }

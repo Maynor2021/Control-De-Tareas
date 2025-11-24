@@ -23,7 +23,7 @@ namespace Control_De_Tareas.Data.Entitys
         /// <summary>
         /// Identificador del profesor asignado a esta oferta.
         /// </summary>
-        public int ProfessorId { get; set; }
+        public Guid ProfessorId { get; set; }
 
         /// <summary>
         /// Identificador del periodo académico en el cual se impartirá este curso.

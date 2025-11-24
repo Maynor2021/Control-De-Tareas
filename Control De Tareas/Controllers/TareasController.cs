@@ -9,10 +9,10 @@ namespace Control_De_Tareas.Controllers
     [Authorize] // Requiere autenticación
     public class TareasController : Controller
     {
-        private Context _context;
+        private ContextDB _context;
         private ILogger<TareasController> _logger;
         
-        public TareasController(Context context, ILogger<TareasController> logger)
+        public TareasController(ContextDB context, ILogger<TareasController> logger)
         {
             _context = context;
             _logger = logger;

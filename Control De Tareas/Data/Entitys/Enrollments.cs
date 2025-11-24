@@ -21,7 +21,7 @@ namespace Control_De_Tareas.Data.Entitys
         /// <summary>
         /// Identificador del estudiante inscrito en la oferta de curso.
         /// </summary>
-        public int StudentId { get; set; }
+        public Guid StudentId { get; set; }
 
         /// <summary>
         /// Fecha en la que se realizó la inscripción.

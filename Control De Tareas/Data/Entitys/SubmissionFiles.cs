@@ -6,7 +6,7 @@ namespace Control_De_Tareas.Data.Entitys
     public class SubmissionFiles
     {
         public int Id { get; set; }
-        public int SubmissionId { get; set; }
+        public Guid SubmissionId { get; set; }
         public string FilePath { get; set; } = string.Empty;
         public string? FileName { get; set; }
         public DateTime UploadedAt { get; set; } = DateTime.Now;

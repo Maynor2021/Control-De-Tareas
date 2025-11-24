@@ -12,7 +12,7 @@
 
         public bool IsSoftDeleted { get; set; }
 
-        public Guid RolId { get; set; }
+     
         public ICollection<Module> Modules { get; set; }
 
         public ModuleGroup()
