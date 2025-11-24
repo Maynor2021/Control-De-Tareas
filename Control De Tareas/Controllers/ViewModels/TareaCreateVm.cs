@@ -20,3 +20,4 @@ namespace Control_De_Tareas.Data.ViewModels
         public decimal MaxScore { get; set; } = 100;
     }
 }
+
