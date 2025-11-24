@@ -1,0 +1,48 @@
+﻿@model Control_De_Tareas.Data.Entitys.Tareas
+@{
+    ViewData["Title"] = "Editar Tarea";
+    var course = ViewBag.CourseOffering as Control_De_Tareas.Data.Entitys.CourseOfferings;
+}
+
+<h2>Editar tarea – @(course?.Course?.Description ?? "Curso")</h2>
+
+<form asp-action="Editar" method="post" novalidate>
+    @Html.AntiForgeryToken()
+
+    <input type="hidden" asp-for="Id" />
+
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="DueDate" class="form-label"></label>
+        <input asp-for="DueDate" type="datetime-local" class="form-control"
+               value="@Model.DueDate.ToString("yyyy-MM-ddTHH:mm")" />
+        <span asp-validation-for="DueDate" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="MaxScore" class="form-label"></label>
+        <input asp-for="MaxScore" class="form-control" />
+        <span asp-validation-for="MaxScore" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    <a asp-action="Index" asp-route-courseOfferingId="@Model.CourseOfferingId" class="btn btn-secondary">Cancelar</a>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
+

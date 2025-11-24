@@ -1,6 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Control_De_Tareas.Data.Entitys;
+
+
 
 namespace Control_De_Tareas.Data.Configurations
 {
@@ -8,40 +10,36 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Tareas> builder)
         {
-            builder.ToTable("Tasks");
-
             builder.HasKey(t => t.Id);
 
             builder.Property(t => t.Title)
                    .IsRequired()
-                   .HasMaxLength(150);
+                   .HasMaxLength(100);
 
             builder.Property(t => t.Description)
-                   .HasMaxLength(500);
+                   .HasMaxLength(1000);
 
             builder.Property(t => t.DueDate)
                    .IsRequired();
 
             builder.Property(t => t.MaxScore)
-                   .HasColumnType("decimal(5,2)")
-                   .HasDefaultValue(100);
+                   .IsRequired()
+                   .HasPrecision(18, 2);
 
-            builder.Property(t => t.IsSoftDeleted)
-                   .HasDefaultValue(false);
-
+           
             builder.HasOne(t => t.CourseOffering)
-                   .WithMany(co => co.Tareas)
+                   .WithMany()
                    .HasForeignKey(t => t.CourseOfferingId)
                    .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(t => t.CreatedByUser)
-                   .WithMany(u => u.CreatedTasks)
+                   .WithMany()
                    .HasForeignKey(t => t.CreatedBy)
                    .OnDelete(DeleteBehavior.Restrict);
         }
     }
 
-    public class CoursesConfig : IEntityTypeConfiguration<Courses>
+    public class CoursesConfiguration : IEntityTypeConfiguration<Courses>
     {
         public void Configure(EntityTypeBuilder<Courses> builder)
         {
@@ -51,14 +49,15 @@ namespace Control_De_Tareas.Data.Configurations
 
             builder.Property(c => c.Code)
                    .IsRequired()
-                   .HasMaxLength(50);
+                   .HasMaxLength(10);
 
             builder.Property(c => c.Title)
                    .IsRequired()
-                   .HasMaxLength(150);
+                   .HasMaxLength(200);
 
             builder.Property(c => c.Description)
-                   .HasMaxLength(500);
+                   .HasMaxLength(500)
+                   .IsRequired(false);
 
             builder.Property(c => c.CreatedAt)
                    .HasDefaultValueSql("GETDATE()");
@@ -75,27 +74,31 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Roles> builder)
         {
-            builder.ToTable("Roles");
 
-            builder.HasKey(r => r.Id);
+            builder.HasKey(r => r.RoleId);
 
-            builder.Property(r => r.Name)
+            // PROPIEDADES
+            builder.Property(r => r.RoleName)
                    .IsRequired()
-                   .HasMaxLength(100);
+                   .HasMaxLength(50);
 
             builder.Property(r => r.Description)
-                   .HasMaxLength(255);
+                   .HasMaxLength(200)
+                   .IsRequired(false);
 
-            builder.Property(r => r.CreatedAt)
+            builder.Property(r => r.CreateAt)
+                   .IsRequired()
                    .HasDefaultValueSql("GETDATE()");
 
-            builder.Property(r => r.IsSoftDeleted)
-                   .HasDefaultValue(false);
+            // RELACIONES
+            builder.HasMany(r => r.RoleModules)
+                   .WithOne(rm => rm.Role)
+                   .HasForeignKey(rm => rm.RoleId);
 
-            builder.HasMany(r => r.UserRoles)
-                   .WithOne(ur => ur.Role)
-                   .HasForeignKey(ur => ur.RoleId)
-                   .OnDelete(DeleteBehavior.Cascade);
+            builder.HasMany(r => r.Users)
+                   .WithOne(u => u.Rol)
+                   .HasForeignKey(u => u.RolId);
+
         }
     }
 
@@ -103,36 +106,29 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Users> builder)
         {
-            builder.ToTable("Users");
-
-            builder.HasKey(u => u.Id);
+            builder.HasKey(u => u.UserId);
 
             builder.Property(u => u.UserName)
                    .IsRequired()
                    .HasMaxLength(100);
 
-            builder.Property(u => u.FullName)
-                   .HasMaxLength(150);
-
             builder.Property(u => u.Email)
                    .IsRequired()
-                   .HasMaxLength(150);
+                   .HasMaxLength(200);
 
             builder.HasIndex(u => u.Email)
                    .IsUnique();
 
             builder.Property(u => u.PasswordHash)
                    .IsRequired()
-                   .HasMaxLength(255);
+                   .HasMaxLength(500);
 
-            builder.Property(u => u.CreatedAt)
+            builder.Property(u => u.Instructor)
+                   .HasMaxLength(100);
+
+            builder.Property(u => u.CreateAt)
+                   .IsRequired()
                    .HasDefaultValueSql("GETDATE()");
-
-            builder.Property(u => u.IsEnabled)
-                   .HasDefaultValue(true);
-
-            builder.Property(u => u.IsSoftDeleted)
-                   .HasDefaultValue(false);
 
             builder.HasMany(u => u.UserRoles)
                    .WithOne(ur => ur.User)
@@ -145,15 +141,12 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<UserRoles> builder)
         {
-            builder.ToTable("UserRoles");
+            builder.HasKey(ur => new { ur.UserId, ur.RoleId });
 
-            builder.HasKey(ur => ur.Id);
 
-            builder.Property(ur => ur.AssignedAt)
+            builder.Property(ur => ur.CreatAt)
+                   .IsRequired()
                    .HasDefaultValueSql("GETDATE()");
-
-            builder.Property(ur => ur.IsSoftDeleted)
-                   .HasDefaultValue(false);
 
             builder.HasOne(ur => ur.User)
                    .WithMany(u => u.UserRoles)
@@ -173,39 +166,291 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Submissions> builder)
         {
-            builder.ToTable("Submissions");
-
             builder.HasKey(s => s.Id);
 
+
+            builder.Property(s => s.TaskId)
+                   .IsRequired();
+
+            builder.Property(s => s.StudentId)
+                   .IsRequired();
+
             builder.Property(s => s.SubmittedAt)
+                   .IsRequired()
                    .HasDefaultValueSql("GETDATE()");
 
-            builder.Property(s => s.Comments)
-                   .HasMaxLength(500);
-
             builder.Property(s => s.CurrentGrade)
-                   .HasColumnType("decimal(5,2)");
+                   .HasColumnType("decimal(5,2)")
+                   .IsRequired();
 
-            builder.Property(s => s.Status)
-                   .HasMaxLength(50)
-                   .HasDefaultValue("Submitted");
+            builder.Property(s => s.Comments)
+                   .HasMaxLength(1000)
+                   .IsRequired(false);
 
-            builder.Property(s => s.IsSoftDeleted)
-                   .HasDefaultValue(false);
 
             builder.HasOne(s => s.Task)
                    .WithMany(t => t.Submissions)
                    .HasForeignKey(s => s.TaskId)
-                   .OnDelete(DeleteBehavior.Restrict);
+                   .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(s => s.Student)
-                   .WithMany(u => u.Submissions)
+                   .WithMany()
                    .HasForeignKey(s => s.StudentId)
                    .OnDelete(DeleteBehavior.Restrict);
+
 
             builder.HasIndex(s => s.TaskId);
             builder.HasIndex(s => s.StudentId);
             builder.HasIndex(s => s.SubmittedAt);
+
+
+        }
+    }
+
+    public class ModuleGroupConfig : IEntityTypeConfiguration<ModuleGroup>
+    {
+        public void Configure(EntityTypeBuilder<ModuleGroup> builder)
+        {
+            builder.HasKey(mg => mg.GroupModuleId);
+            builder.Property(mg => mg.Description).IsRequired().HasMaxLength(200);
+            builder.Property(mg => mg.CreateAt).IsRequired().HasDefaultValueSql("GETDATE()");
+            builder.HasMany(mg => mg.Modules).WithOne(m => m.ModuloAgrupado).HasForeignKey(m => m.ModuloAgrupadoId).OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+
+    public class ModuleConfig : IEntityTypeConfiguration<Module>
+    {
+        public void Configure(EntityTypeBuilder<Module> builder)
+        {
+            builder.HasKey(m => m.ModuleId);
+            builder.HasMany(m => m.RoleModules).WithOne(rm => rm.Module).HasForeignKey(rm => rm.ModuleId);
+        }
+    }
+
+    public class RoleModulesConfig : IEntityTypeConfiguration<RoleModules>
+    {
+        public void Configure(EntityTypeBuilder<RoleModules> builder)
+        {
+            builder.HasKey(mr => mr.ModuleRoleId);
+        }
+    }
+
+    public class AuditLogsConfig : IEntityTypeConfiguration<AuditLogs>
+    {
+        public void Configure(EntityTypeBuilder<AuditLogs> builder)
+        {
+            builder.HasKey(a => a.Id);
+
+            builder.Property(a => a.Action)
+                   .HasMaxLength(100);
+
+            builder.Property(a => a.Entity)
+                   .HasMaxLength(100);
+
+            builder.Property(a => a.Details)
+                   .HasMaxLength(2000);
+
+            builder.Property(a => a.CreatedAt)
+                   .IsRequired()
+                   .HasDefaultValueSql("GETDATE()");
+
+            builder.Property(a => a.IsSoftDeleted)
+                   .HasDefaultValue(false);
+
+            // Configurar la relación con Users
+            builder.HasOne(a => a.User)
+                   .WithMany()
+                   .HasForeignKey(a => a.UserId)
+                   .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasIndex(a => a.UserId);
+            builder.HasIndex(a => a.CreatedAt);
+        }
+    }
+
+    public class GradesConfig : IEntityTypeConfiguration<Grades>
+    {
+        public void Configure(EntityTypeBuilder<Grades> builder)
+        {
+            builder.HasKey(g => g.Id);
+
+            // Configurar el tipo decimal con precisión
+            builder.Property(g => g.Score)
+                   .IsRequired()
+                   .HasPrecision(5, 2); // Permite valores como 100.00
+
+            builder.Property(g => g.Feedback)
+                   .HasMaxLength(2000);
+
+            builder.Property(g => g.GradedAt)
+                   .IsRequired()
+                   .HasDefaultValueSql("GETDATE()");
+
+            builder.Property(g => g.IsSoftDeleted)
+                   .HasDefaultValue(false);
+
+            // Configurar la relación con Submissions
+            builder.HasOne(g => g.Submission)
+                   .WithMany(s => s.Grades)
+                   .HasForeignKey(g => g.SubmissionId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Configurar la relación con Users (Grader)
+            builder.HasOne(g => g.Grader)
+                   .WithMany()
+                   .HasForeignKey(g => g.GraderId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasIndex(g => g.SubmissionId);
+            builder.HasIndex(g => g.GraderId);
+        }
+    }
+
+    public class SubmissionFilesConfig : IEntityTypeConfiguration<SubmissionFiles>
+    {
+        public void Configure(EntityTypeBuilder<SubmissionFiles> builder)
+        {
+            builder.HasKey(sf => sf.Id);
+
+            builder.Property(sf => sf.FilePath)
+                   .IsRequired()
+                   .HasMaxLength(500);
+
+            builder.Property(sf => sf.FileName)
+                   .HasMaxLength(255);
+
+            builder.Property(sf => sf.UploadedAt)
+                   .IsRequired()
+                   .HasDefaultValueSql("GETDATE()");
+
+            builder.Property(sf => sf.IsSoftDeleted)
+                   .HasDefaultValue(false);
+
+            // Configurar la relación con Submissions
+            builder.HasOne(sf => sf.Submission)
+                   .WithMany(s => s.SubmissionFiles)
+                   .HasForeignKey(sf => sf.SubmissionId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasIndex(sf => sf.SubmissionId);
+        }
+    }
+
+    public class AnnouncementsConfig : IEntityTypeConfiguration<Announcements>
+    {
+        public void Configure(EntityTypeBuilder<Announcements> builder)
+        {
+            builder.HasKey(a => a.Id);
+
+            builder.Property(a => a.Title)
+                   .IsRequired()
+                   .HasMaxLength(200);
+
+            builder.Property(a => a.Body)
+                   .HasMaxLength(2000);
+
+            builder.Property(a => a.PostedAt)
+                   .IsRequired()
+                   .HasDefaultValueSql("GETDATE()");
+
+            builder.Property(a => a.IsSoftDeleted)
+                   .HasDefaultValue(false);
+
+            // Configurar relación con CourseOfferings
+            builder.HasOne(a => a.CourseOffering)
+                   .WithMany(co => co.Announcements)
+                   .HasForeignKey(a => a.CourseOfferingId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Configurar relación con Users (PostedByUser) - NO CASCADE para evitar ciclos
+            builder.HasOne(a => a.PostedByUser)
+                   .WithMany()
+                   .HasForeignKey(a => a.PostedBy)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasIndex(a => a.CourseOfferingId);
+            builder.HasIndex(a => a.PostedBy);
+        }
+    }
+
+    public class CourseOfferingsConfig : IEntityTypeConfiguration<CourseOfferings>
+    {
+        public void Configure(EntityTypeBuilder<CourseOfferings> builder)
+        {
+            builder.HasKey(co => co.Id);
+
+            builder.Property(co => co.Section)
+                   .HasMaxLength(10);
+
+            builder.Property(co => co.CreatedAt)
+                   .IsRequired()
+                   .HasDefaultValueSql("GETDATE()");
+
+            builder.Property(co => co.IsActive)
+                   .HasDefaultValue(true);
+
+            builder.Property(co => co.IsSoftDeleted)
+                   .HasDefaultValue(false);
+
+            // Configurar relación con Courses
+            builder.HasOne(co => co.Course)
+                   .WithMany()
+                   .HasForeignKey(co => co.CourseId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            // Configurar relación con Users (Professor) - NO CASCADE
+            builder.HasOne(co => co.Professor)
+                   .WithMany()
+                   .HasForeignKey(co => co.ProfessorId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            // Configurar relación con Periods
+            builder.HasOne(co => co.Period)
+                   .WithMany(p => p.CourseOfferings)
+                   .HasForeignKey(co => co.PeriodId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasIndex(co => co.CourseId);
+            builder.HasIndex(co => co.ProfessorId);
+            builder.HasIndex(co => co.PeriodId);
+        }
+    }
+
+    public class EnrollmentsConfig : IEntityTypeConfiguration<Enrollments>
+    {
+        public void Configure(EntityTypeBuilder<Enrollments> builder)
+        {
+            builder.HasKey(e => e.Id);
+
+            builder.Property(e => e.EnrolledAt)
+                   .IsRequired()
+                   .HasDefaultValueSql("GETDATE()");
+
+            builder.Property(e => e.Status)
+                   .IsRequired()
+                   .HasMaxLength(50)
+                   .HasDefaultValue("Active");
+
+            builder.Property(e => e.IsSoftDeleted)
+                   .HasDefaultValue(false);
+
+            // Configurar relación con CourseOfferings
+            builder.HasOne(e => e.CourseOffering)
+                   .WithMany(co => co.Enrollments)
+                   .HasForeignKey(e => e.CourseOfferingId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Configurar relación con Users (Student) - NO CASCADE
+            builder.HasOne(e => e.Student)
+                   .WithMany()
+                   .HasForeignKey(e => e.StudentId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasIndex(e => e.CourseOfferingId);
+            builder.HasIndex(e => e.StudentId);
+            builder.HasIndex(e => new { e.CourseOfferingId, e.StudentId })
+                   .IsUnique(); // Un estudiante solo puede inscribirse una vez por oferta
         }
     }
 
@@ -213,8 +458,6 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Periods> builder)
         {
-            builder.ToTable("Periods");
-
             builder.HasKey(p => p.Id);
 
             builder.Property(p => p.Name)
@@ -231,199 +474,13 @@ namespace Control_De_Tareas.Data.Configurations
                    .HasDefaultValue(true);
 
             builder.Property(p => p.CreatedAt)
+                   .IsRequired()
                    .HasDefaultValueSql("GETDATE()");
 
             builder.Property(p => p.IsSoftDeleted)
                    .HasDefaultValue(false);
-        }
-    }
 
-    public class CourseOfferingsConfig : IEntityTypeConfiguration<CourseOfferings>
-    {
-        public void Configure(EntityTypeBuilder<CourseOfferings> builder)
-        {
-            builder.ToTable("CourseOfferings");
-
-            builder.HasKey(co => co.Id);
-
-            builder.Property(co => co.Section)
-                   .HasMaxLength(10);
-
-            builder.Property(co => co.CreatedAt)
-                   .HasDefaultValueSql("GETDATE()");
-
-            builder.Property(co => co.IsActive)
-                   .HasDefaultValue(true);
-
-            builder.Property(co => co.IsSoftDeleted)
-                   .HasDefaultValue(false);
-
-            builder.HasOne(co => co.Course)
-                   .WithMany()
-                   .HasForeignKey(co => co.CourseId)
-                   .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(co => co.Professor)
-                   .WithMany(u => u.CourseOfferings)
-                   .HasForeignKey(co => co.ProfessorId)
-                   .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(co => co.Period)
-                   .WithMany(p => p.CourseOfferings)
-                   .HasForeignKey(co => co.PeriodId)
-                   .OnDelete(DeleteBehavior.Restrict);
-        }
-    }
-
-    public class EnrollmentsConfig : IEntityTypeConfiguration<Enrollments>
-    {
-        public void Configure(EntityTypeBuilder<Enrollments> builder)
-        {
-            builder.ToTable("Enrollments");
-
-            builder.HasKey(e => e.Id);
-
-            builder.Property(e => e.EnrolledAt)
-                   .HasDefaultValueSql("GETDATE()");
-
-            builder.Property(e => e.Status)
-                   .HasMaxLength(50)
-                   .HasDefaultValue("Active");
-
-            builder.Property(e => e.IsSoftDeleted)
-                   .HasDefaultValue(false);
-
-            builder.HasOne(e => e.CourseOffering)
-                   .WithMany(co => co.Enrollments)
-                   .HasForeignKey(e => e.CourseOfferingId)
-                   .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(e => e.Student)
-                   .WithMany(u => u.Enrollments)
-                   .HasForeignKey(e => e.StudentId)
-                   .OnDelete(DeleteBehavior.Restrict);
-        }
-    }
-
-    public class SubmissionFilesConfig : IEntityTypeConfiguration<SubmissionFiles>
-    {
-        public void Configure(EntityTypeBuilder<SubmissionFiles> builder)
-        {
-            builder.ToTable("SubmissionFiles");
-
-            builder.HasKey(sf => sf.Id);
-
-            builder.Property(sf => sf.FilePath)
-                   .IsRequired()
-                   .HasMaxLength(255);
-
-            builder.Property(sf => sf.FileName)
-                   .HasMaxLength(255);
-
-            builder.Property(sf => sf.UploadedAt)
-                   .HasDefaultValueSql("GETDATE()");
-
-            builder.Property(sf => sf.IsSoftDeleted)
-                   .HasDefaultValue(false);
-
-            builder.HasOne(sf => sf.Submission)
-                   .WithMany(s => s.SubmissionFiles)
-                   .HasForeignKey(sf => sf.SubmissionId)
-                   .OnDelete(DeleteBehavior.Cascade);
-        }
-    }
-
-    public class GradesConfig : IEntityTypeConfiguration<Grades>
-    {
-        public void Configure(EntityTypeBuilder<Grades> builder)
-        {
-            builder.ToTable("Grades");
-
-            builder.HasKey(g => g.Id);
-
-            builder.Property(g => g.Score)
-                   .HasColumnType("decimal(5,2)")
-                   .IsRequired();
-
-            builder.Property(g => g.Feedback)
-                   .HasMaxLength(500);
-
-            builder.Property(g => g.GradedAt)
-                   .HasDefaultValueSql("GETDATE()");
-
-            builder.Property(g => g.IsSoftDeleted)
-                   .HasDefaultValue(false);
-
-            builder.HasOne(g => g.Submission)
-                   .WithMany(s => s.Grades)
-                   .HasForeignKey(g => g.SubmissionId)
-                   .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(g => g.Grader)
-                   .WithMany(u => u.Grades)
-                   .HasForeignKey(g => g.GraderId)
-                   .OnDelete(DeleteBehavior.Restrict);
-        }
-    }
-
-    public class AnnouncementsConfig : IEntityTypeConfiguration<Announcements>
-    {
-        public void Configure(EntityTypeBuilder<Announcements> builder)
-        {
-            builder.ToTable("Announcements");
-
-            builder.HasKey(a => a.Id);
-
-            builder.Property(a => a.Title)
-                   .IsRequired()
-                   .HasMaxLength(150);
-
-            builder.Property(a => a.Body);
-
-            builder.Property(a => a.PostedAt)
-                   .HasDefaultValueSql("GETDATE()");
-
-            builder.Property(a => a.IsSoftDeleted)
-                   .HasDefaultValue(false);
-
-            builder.HasOne(a => a.CourseOffering)
-                   .WithMany(co => co.Announcements)
-                   .HasForeignKey(a => a.CourseOfferingId)
-                   .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(a => a.PostedByUser)
-                   .WithMany(u => u.Announcements)
-                   .HasForeignKey(a => a.PostedBy)
-                   .OnDelete(DeleteBehavior.Restrict);
-        }
-    }
-
-    public class AuditLogsConfig : IEntityTypeConfiguration<AuditLogs>
-    {
-        public void Configure(EntityTypeBuilder<AuditLogs> builder)
-        {
-            builder.ToTable("AuditLogs");
-
-            builder.HasKey(al => al.Id);
-
-            builder.Property(al => al.Action)
-                   .HasMaxLength(100);
-
-            builder.Property(al => al.Entity)
-                   .HasMaxLength(100);
-
-            builder.Property(al => al.Details);
-
-            builder.Property(al => al.CreatedAt)
-                   .HasDefaultValueSql("GETDATE()");
-
-            builder.Property(al => al.IsSoftDeleted)
-                   .HasDefaultValue(false);
-
-            builder.HasOne(al => al.User)
-                   .WithMany()
-                   .HasForeignKey(al => al.UserId)
-                   .OnDelete(DeleteBehavior.Restrict);
+            builder.HasIndex(p => p.IsActive);
         }
     }
 }

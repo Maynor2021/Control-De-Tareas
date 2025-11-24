@@ -40,48 +40,7 @@ namespace Control_De_Tareas.Controllers
         }
 
 
-        [HttpPost]
-        public IActionResult Login(UserVm usersV)
-        {
-            var user = _context.Users.Where(u => u.Email == u.Email && u.IsSoftDeleted == false).ProjectToType<UserVm>().FirstOrDefault();
-
-            // Validar que las contraseñas coincidan
-            if (User == null)
-            {
-                ViewBag.Error = "usaurio o contrasena Incorreto";
-                return View(new UserVm());
-            }
-            usersV.Password = GetMD5(usersV.Password);
-
-            if (user.Password != usersV.Password)
-            {
-                ViewBag.Error = "usaurio o contrasena Incorreto";
-                return View(new UserVm());
-            }
-
-            // Obtener los módulos del rol del usuario)(
-            var modulosRoles = _context.RoleModules.Where(rm => rm.IsSoftDeleted == false && rm.RoleId == user.Rol.RoleId).ProjectToType<RolModuloVM>().ToList();
-            var AgrupadosID = modulosRoles.Select(mr => mr.Modulo.ModuloAgrupadoId).Distinct().ToList();
-            var agrupados = _context.ModuleGroup.Where(ma => ma.IsSoftDeleted == false && AgrupadosID.Contains(ma.GroupModuleId)).ProjectToType<ModuleGroupVm>().ToList();
-            foreach (var Item in agrupados)
-            {
-                var modulosActuales = modulosRoles.Where(mr => mr.Modulo.ModuloAgrupadoId == Item.GroupModuleId).Select(s => s.Modulo.ModuleId).Distinct().ToList();
-                Item.Modulos = Item.Modulos.Where(m => modulosActuales.Contains(m.ModuleId)).ToList();
-            }
-
-            user.menu = agrupados;
-            user.Password = string.Empty;
-            var sesionJson = JsonConvert.SerializeObject(user);
-            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(sesionJson);
-            var sesionBase64 = System.Convert.ToBase64String(plainTextBytes);
-            HttpContext.Session.SetString("UserSession", sesionBase64);
-
-            return RedirectToAction("Index", "Home");
-
-
-
-
-        }
+       
 
         private string GetMD5(string str)
         {
@@ -96,6 +55,83 @@ namespace Control_De_Tareas.Controllers
 
                 return sb.ToString();
             }
+        }
+
+        [HttpPost]
+        public IActionResult Login(UserVm usersV)
+        {
+           
+            var user = _context.Users
+                .Where(u => u.Email == usersV.Email && u.IsSoftDeleted == false)
+                .ProjectToType<UserVm>()
+                .FirstOrDefault();
+
+          
+            if (user == null)
+            {
+                ViewBag.Error = "Usuario o contraseña incorrectos";
+                return View(new UserVm());
+            }
+
+            // Hashear la contraseña ingresada
+            usersV.PasswordHash = GetMD5(usersV.PasswordHash);
+
+            // Validar que las contraseñas coincidan
+            if (user.PasswordHash != usersV.PasswordHash)
+            {
+                ViewBag.Error = "Usuario o contraseña incorrectos";
+                return View(new UserVm());
+            }
+
+            // Obtener los módulos del rol del usuario
+            var modulosRoles = _context.RoleModules
+                .Where(rm => rm.IsSoftDeleted == false && rm.RoleId == user.Rol.RoleId)
+                .ProjectToType<RolModuloVM>()
+                .ToList();
+
+            var AgrupadosID = modulosRoles
+                .Select(mr => mr.Modulo.ModuloAgrupadoId)
+                .Distinct()
+                .ToList();
+
+            var agrupados = _context.ModuleGroup
+                .Where(ma => ma.IsSoftDeleted == false && AgrupadosID.Contains(ma.GroupModuleId))
+                .ProjectToType<ModuleGroupVm>()
+                .ToList();
+
+            foreach (var Item in agrupados)
+            {
+                var modulosActuales = modulosRoles
+                    .Where(mr => mr.Modulo.ModuloAgrupadoId == Item.GroupModuleId)
+                    .Select(s => s.Modulo.ModuleId)
+                    .Distinct()
+                    .ToList();
+
+                Item.Modulos = Item.Modulos
+                    .Where(m => modulosActuales.Contains(m.ModuleId))
+                    .ToList();
+            }
+
+            user.menu = agrupados;
+            user.PasswordHash = string.Empty;
+
+            var sesionJson = JsonConvert.SerializeObject(user);
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(sesionJson);
+            var sesionBase64 = System.Convert.ToBase64String(plainTextBytes);
+
+            HttpContext.Session.SetString("UserSession", sesionBase64);
+
+            return RedirectToAction("Index", "Home");
+        }
+
+        /// <summary>
+        /// Cerrar sesión
+        /// </summary>
+        public IActionResult Logout()
+        {
+            HttpContext.Session.Clear();
+            return RedirectToAction("login", "Home");
+
         }
 
 

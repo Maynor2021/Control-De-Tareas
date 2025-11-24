@@ -1,48 +1,139 @@
-using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Authorization;
+using Control_De_Tareas.Data;
+using Control_De_Tareas.Data.Entitys;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Control_De_Tareas.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 
 namespace Control_De_Tareas.Controllers
 {
-    [Authorize] // Requiere autenticación
+    [Authorize] // requiere autenticación
     public class TareasController : Controller
     {
-        private Context _context;
-        private ILogger<TareasController> _logger;
-        
-        public TareasController(Context context, ILogger<TareasController> logger)
+        private readonly ContextDB _context;
+        private readonly ILogger<TareasController> _logger;
+
+        public TareasController(ContextDB context, ILogger<TareasController> logger)
         {
             _context = context;
             _logger = logger;
         }
 
-        // Todos pueden ver
-        public IActionResult Index()
+        // ---------------------------------------------------
+        // INDEX - TODOS PUEDEN VER LA LISTA DE TAREAS
+        // ---------------------------------------------------
+        public async Task<IActionResult> Index()
         {
+            var tareas = await _context.Tareas
+                .Where(t => !t.IsSoftDeleted)
+                .Include(t => t.CourseOffering)
+                    .ThenInclude(co => co.Course)
+                .OrderBy(t => t.DueDate)
+                .ToListAsync();
+
+            return View(tareas);
+        }
+
+        // ---------------------------------------------------
+        // CREAR TAREA (GET) - SOLO ADMIN
+        // ---------------------------------------------------
+        [Authorize(Policy = "Admin")]
+        public IActionResult Crear()
+        {
+            // Si necesitas enviar CourseOfferings a la vista:
+            // ViewBag.CourseOfferings = _context.CourseOfferings.ToList();
+
             return View();
         }
 
-        // Solo profesores pueden crear
-        [ProfesorAuthorize]
-        public IActionResult Crear() => View();
-
+        // ---------------------------------------------------
+        // CREAR TAREA (POST) - SOLO ADMIN
+        // ---------------------------------------------------
         [HttpPost]
-        [ProfesorAuthorize]
-        public IActionResult Crear(Tareas tarea)
+        [ValidateAntiForgeryToken]
+        [Authorize(Policy = "Admin")]
+        public async Task<IActionResult> Crear(TareaCreateVm vm)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
+                return View(vm);
+
+            // Obtener GUID del usuario autenticado
+            var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(claim, out var userGuid))
+            {
+                _logger.LogWarning("Crear Tarea: Claim inválido");
+                ModelState.AddModelError("", "No se pudo identificar al usuario.");
+                return View(vm);
+            }
+
+            // Validar que existe el CourseOffering
+            var existsCO = await _context.CourseOfferings.AnyAsync(co => co.Id == vm.CourseOfferingId);
+            if (!existsCO)
+            {
+                ModelState.AddModelError(nameof(vm.CourseOfferingId), "La oferta de curso no existe.");
+                return View(vm);
+            }
+
+            // Crear entidad Tareas
+            var tarea = new Tareas
+            {
+                Id = Guid.NewGuid(),
+                CourseOfferingId = vm.CourseOfferingId,
+                Title = vm.Title,
+                Description = vm.Description,
+                DueDate = vm.DueDate,
+                MaxScore = vm.MaxScore,
+                CreatedBy = userGuid,
+                IsSoftDeleted = false
+            };
+
+            try
             {
                 _context.Tareas.Add(tarea);
-                _context.SaveChanges();
-                return RedirectToAction("Index");
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(Index));
             }
-            return View(tarea);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al guardar la tarea");
+                ModelState.AddModelError("", "Error al guardar la tarea en la base de datos.");
+                return View(vm);
+            }
         }
 
-        // Solo estudiantes pueden entregar
+        // ---------------------------------------------------
+        // ENTREGAR (GET) - SOLO ESTUDIANTES
+        // ---------------------------------------------------
         [EstudianteAuthorize]
-        public IActionResult Entregar(Guid id) => View();
+        public IActionResult Entregar(int id)
+        {
+            // Puedes cargar la tarea aquí si quieres:
+            // var tarea = _context.Tareas.Find(id);
+
+            return View();
+        }
+    }
+
+    // ---------------------------------------------------
+    // VIEW MODEL PARA CREAR TAREA
+    // ---------------------------------------------------
+    public class TareaCreateVm
+    {
+        public int CourseOfferingId { get; set; }  // Es INT en tu base de datos
+
+        [Required]
+        [StringLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        [Required]
+        public DateTime DueDate { get; set; }
+
+        [Range(0, 10000)]
+        public decimal MaxScore { get; set; } = 100;
     }
 }

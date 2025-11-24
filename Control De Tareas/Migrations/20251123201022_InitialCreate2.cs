@@ -6,14 +6,14 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Control_De_Tareas.Migrations
 {
     /// <inheritdoc />
-    public partial class seguridd : Migration
+    public partial class InitialCreate2 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
                 name: "RolId",
-                table: "Module");
+                table: "ModuleGroup");
         }
 
         /// <inheritdoc />
@@ -21,7 +21,7 @@ namespace Control_De_Tareas.Migrations
         {
             migrationBuilder.AddColumn<Guid>(
                 name: "RolId",
-                table: "Module",
+                table: "ModuleGroup",
                 type: "uniqueidentifier",
                 nullable: false,
                 defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));

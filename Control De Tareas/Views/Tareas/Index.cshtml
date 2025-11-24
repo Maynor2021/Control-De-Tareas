@@ -1,5 +1,45 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model IEnumerable<Control_De_Tareas.Data.Entitys.Tareas>
 @{
+    ViewData["Title"] = "Lista de Tareas";
+    var course = ViewBag.CourseOffering as Control_De_Tareas.Data.Entitys.CourseOfferings;
 }
+
+<h2>@(course != null ? "Tareas - " + (course.Course?.Description ?? "Curso") : "Tareas")</h2>
+
+<p>
+    @if (User.IsInRole("Administrador"))
+    {
+        <a asp-action="Crear" class="btn btn-primary">Crear nueva tarea</a>
+    }
+</p>
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Curso</th>
+            <th>Título</th>
+            <th>Fecha límite</th>
+            <th>Puntos</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var t in Model)
+        {
+            <tr>
+                <td>@(t.CourseOffering?.Course?.Description ?? "-")</td>
+                <td>@t.Title</td>
+                <td>@t.DueDate.ToLocalTime().ToString("g")</td>
+                <td>@t.MaxScore</td>
+                <td>
+                    <a asp-action="Detalle" asp-route-id="@t.Id" class="btn btn-sm btn-outline-primary">Ver</a>
+                    @if (User.IsInRole("Administrador"))
+                    {
+                        <a asp-action="Editar" asp-route-id="@t.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        <a asp-action="Delete" asp-route-id="@t.Id" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

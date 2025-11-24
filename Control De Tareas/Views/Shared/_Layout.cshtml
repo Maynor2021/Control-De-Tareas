@@ -1,4 +1,9 @@
-﻿<!DOCTYPE html>
+﻿@using Control_De_Tareas.Data
+@using Microsoft.AspNetCore.Identity
+@using Newtonsoft.Json
+
+
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8" />
@@ -15,33 +20,65 @@
     <nav class="navbar navbar-blue navbar-dark fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="/">Control De Tareas</a>
+
             <div class="d-flex align-items-center">
-                @if (User.Identity?.IsAuthenticated == true)
-                {
-                    <span class="text-white me-3">
-                        Bienvenido, @User.Identity.Name
-                        @if (User.IsInRole("Administrador"))
+
+                @{
+                    var userSession = Context.Session.GetString("UserSession");
+                    var usuarioAutenticado = !string.IsNullOrEmpty(userSession);
+                    UserVm usuario = null;
+
+                    if (usuarioAutenticado)
+                    {
+                        try
                         {
-                            <span class="badge bg-danger ms-2">Administrador</span>
+                            var sesionBytes = Convert.FromBase64String(userSession);
+                            var sesionJson = System.Text.Encoding.UTF8.GetString(sesionBytes);
+                            usuario = JsonConvert.DeserializeObject<UserVm>(sesionJson);
                         }
-                        else if (User.IsInRole("Profesor"))
+                        catch
                         {
-                            <span class="badge bg-success ms-2">Profesor</span>
+                            usuarioAutenticado = false;
                         }
-                        else if (User.IsInRole("Estudiante"))
-                        {
-                            <span class="badge bg-info ms-2">Estudiante</span>
-                        }
-                    </span>
-                    <a href="@Url.Action("Logout", "Home")" class="btn btn-sm btn-outline-light">
-                        <i class="fas fa-sign-out-alt"></i> Salir
+                    }
+                }
+                @if (usuarioAutenticado && usuario != null)
+            {
+                <span class="text-white me-3">
+                    Bienvenido, @usuario.Nombre
+                    @if (usuario.Rol.Nombre == "Administrador")
+                    {
+                        <span class="badge bg-danger ms-2">Administrador</span>
+                    }
+                    else if (usuario.Rol.Nombre == "Profesor")
+                    {
+                        <span class="badge bg-success ms-2">Profesor</span>
+                    }
+                    else if (usuario.Rol.Nombre== "Estudiante")
+                    {
+                        <span class="badge bg-info ms-2">Estudiante</span>
+                    }
+                </span>
+
+                    <a asp-controller="Account"
+                       asp-action="Logout"
+                       class="text-white d-flex align-items-center ms-3"
+                       style="text-decoration:none;">
+                        <i class="fas fa-sign-out-alt me-2"></i>
+                        Cerrar Sesión
                     </a>
                 }
                 else
                 {
                     <span class="text-white me-3">Invitado</span>
+
+                  
                 }
-                <button class="navbar-toggler d-md-none ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+
+
+
+                <button class="navbar-toggler d-md-none ms-2" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </div>

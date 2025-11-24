@@ -1,0 +1,50 @@
+﻿@model Control_De_Tareas.Data.ViewModels.TareaCreateVm
+@{
+    ViewData["Title"] = "Crear Tarea";
+}
+
+<h2>Crear Tarea</h2>
+
+<form asp-action="Crear" method="post" novalidate>
+    @Html.AntiForgeryToken()
+
+    <div class="mb-3">
+        <label asp-for="CourseOfferingId" class="form-label">ID de Course Offering</label>
+        <input asp-for="CourseOfferingId" class="form-control" />
+        <span asp-validation-for="CourseOfferingId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="DueDate" class="form-label"></label>
+        <input asp-for="DueDate" type="datetime-local" class="form-control" value='@Model.DueDate.ToString("yyyy-MM-ddTHH:mm")' />
+        <span asp-validation-for="DueDate" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="MaxScore" class="form-label"></label>
+        <input asp-for="MaxScore" class="form-control" />
+        <span asp-validation-for="MaxScore" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Crear</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
+
