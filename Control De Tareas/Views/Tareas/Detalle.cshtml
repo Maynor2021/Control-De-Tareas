@@ -38,6 +38,7 @@
     }
 }
 
+
 @if (User.IsInRole("Administrador"))
 {
     <a asp-action="Editar" asp-route-id="@Model.Id" class="btn btn-primary">Editar</a>
