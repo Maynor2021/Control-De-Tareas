@@ -112,6 +112,7 @@ namespace Control_De_Tareas.Controllers
                     .ToList();
             }
 
+
             user.menu = agrupados;
             user.PasswordHash = string.Empty;
 

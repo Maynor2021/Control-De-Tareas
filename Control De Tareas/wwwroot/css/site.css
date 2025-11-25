@@ -1,4 +1,4 @@
-html {
+Ôªøhtml {
     font-size: 14px;
 }
 
@@ -46,23 +46,23 @@ body {
     color: #000000; /* Letras en negro */
     padding: 0.75rem 1rem;
     border-left: 3px solid transparent;
-    border-radius: 8px; /* Bordes m·s redondeados */
+    border-radius: 8px; /* Bordes m√°s redondeados */
     margin: 2px 8px; /* Espacio entre los items */
-    transition: all 0.3s ease; /* TransiciÛn suave */
+    transition: all 0.3s ease; /* Transici√≥n suave */
 }
 
     .sidebar .nav-link:hover {
         color: #ffffff; /* Letras blancas al hacer hover */
         background-color: rgba(11, 93, 157, 0.8);
-        border-radius: 8px; /* Bordes redondeados en hover tambiÈn */
+        border-radius: 8px; /* Bordes redondeados en hover tambi√©n */
     }
 
     .sidebar .nav-link.active {
-        color: #000000; /* Letras negras cuando est· activo */
+        color: #000000; /* Letras negras cuando est√° activo */
         background-color: rgba(11, 93, 157, 0.1); /* Fondo azul muy suave */
         border-left-color: rgba(11, 93, 157, 0.8); /* Borde izquierdo azul */
-        border-radius: 8px; /* Bordes redondeados cuando est· activo */
-        font-weight: 500; /* Texto un poco m·s grueso para el activo */
+        border-radius: 8px; /* Bordes redondeados cuando est√° activo */
+        font-weight: 500; /* Texto un poco m√°s grueso para el activo */
     }
 
 .sidebar-heading {
@@ -150,22 +150,7 @@ main {
     background-color: white;
 }
 
-.nav-link {
-    transition: all 0.2s ease;
-    border-radius: 8px;
-    margin-bottom: 4px;
-}
 
-    .nav-link:hover {
-        background-color: rgba(13, 110, 253, 0.08) !important;
-        transform: translateX(3px);
-    }
-
-    .nav-link.active {
-        background-color: rgba(13, 110, 253, 0.15) !important;
-        border-left-color: #0d6efd !important;
-        font-weight: 600;
-    }
 
 .dropdown-menu {
     border: none;
@@ -223,6 +208,36 @@ main {
         font-weight: 600;
 
     }
+
+/* ======== Sidebar Link ======== */
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.75rem 1rem;
+    border-left: 3px solid transparent;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #374151;
+    transition: all 0.25s ease;
+}
+
+    /* Hover ‚Üí azul #1E3A8A */
+    .sidebar-link:hover {
+        background-color: blue; /* Azul suave */
+        border-left-color: #1E3A8A;
+        color: #1E3A8A;
+    }
+
+    /* ACTIVE ‚Üí el azul de Bootstrap (#0d6efd) */
+    .sidebar-link.active {
+        background-color: blue;
+        border-left-color: #0d6efd;
+        color: #0d6efd;
+        font-weight: 600;
+    }
+
 
 
 
