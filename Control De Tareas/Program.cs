@@ -1,6 +1,7 @@
 using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Microsoft.EntityFrameworkCore;
+using Control_De_Tareas.Services;
 using Control_De_Tareas; // 👈 Agregar namespace
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IFileStorageService, FileStorageService>();
 
 // Configurar Mapster
 MapsterConfig.Configure();

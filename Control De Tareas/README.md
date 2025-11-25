@@ -117,29 +117,29 @@ A continuación, las credenciales utilizadas en el proyecto:
 
 ## 🟥 **Administrador**
 - **Correo:** `admin@sistema.com`  
-- **Contraseña:** `Admin123!`
+- **Contraseña:** `admin123`
 
 ---
 
 ## 🟦 **Profesores**
 
-- `maria.gonzalez@sistema.com` — **Profesor123!**  
-- `carlos.rodriguez@sistema.com` — **Profesor123!**  
-- `ana.lopez@sistema.com` — **Profesor123!**  
-- `jose.martinez@sistema.com` — **Profesor123!**
+- `maria.gonzalez@sistema.com` — **admin123**  
+- `carlos.rodriguez@sistema.com` — **admin123!**  
+- `ana.lopez@sistema.com` — **admin123!**  
+- `jose.martinez@sistema.com` — **admin123!**
 
 ---
 
 ## 🟩 **Estudiantes**
 
-- `ana.martinez@sistema.com` — **Estudiante123!**  
-- `luis.hernandez@sistema.com` — **Estudiante123!**  
-- `sofia.ramirez@sistema.com` — **Estudiante123!**  
-- `carlos.garcia@sistema.com` — **Estudiante123!**  
-- `marta.lopez@sistema.com` — **Estudiante123!**  
-- `pedro.sanchez@sistema.com` — **Estudiante123!**  
-- `laura.diaz@sistema.com` — **Estudiante123!**  
-- `david.torres@sistema.com` — **Estudiante123!**
+- `ana.martinez@sistema.com` — **admin123**  
+- `luis.hernandez@sistema.com` — **admin123**  
+- `sofia.ramirez@sistema.com` — **admin123**  
+- `carlos.garcia@sistema.com` — **admin123**  
+- `marta.lopez@sistema.com` — **admin123**  
+- `pedro.sanchez@sistema.com` — **admin123**  
+- `laura.diaz@sistema.com` — **admin123**  
+- `david.torres@sistema.com` — **admin123**
 
 ---
 
