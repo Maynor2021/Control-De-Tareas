@@ -1,15 +1,16 @@
 -- =====================================================
--- SCRIPT COMPLETO: LIMPIEZA Y INSERCIÓN DE DATOS
+-- SCRIPT COMPLETO CORREGIDO: SOLO MÓDULOS QUE EXISTEN EN VISTAS/CONTROLADORES
 -- =====================================================
 USE TaskManagerDb;
 /*
 INSTRUCCIONES:
 1. Este script ELIMINARÁ todos los datos existentes
 2. Insertará nuevos datos estáticos y congruentes
-3. Asegura que todos los estudiantes tengan inscripciones
+3. SOLO módulos que coinciden con vistas y controladores reales
+4. NOMBRES DE ACCIONES EN ESPAÑOL para coincidir con controladores
 */
 
-PRINT '=== INICIANDO LIMPIEZA Y INSERCIÓN COMPLETA ===';
+PRINT '=== INICIANDO LIMPIEZA Y INSERCIÓN COMPLETA CORREGIDA ===';
 
 -- =====================================================
 -- LIMPIEZA COMPLETA DE DATOS (EN ORDEN CORRECTO POR FK)
@@ -23,30 +24,30 @@ EXEC sp_MSforeachtable 'ALTER TABLE ? NOCHECK CONSTRAINT ALL';
 -- Eliminar datos en orden correcto (evitar violaciones FK)
 DELETE FROM AuditLogs;
 DELETE FROM Grades;
+DELETE FROM SubmissionFiles;
 DELETE FROM Submissions;
 DELETE FROM Tasks;
 DELETE FROM Announcements;
 DELETE FROM Enrollments;
 DELETE FROM CourseOfferings;
+DELETE FROM RoleModules;
+DELETE FROM Module;
+DELETE FROM ModuleGroup;
 DELETE FROM UserRoles;
 DELETE FROM Users;
+DELETE FROM Roles;
 DELETE FROM Periods;
 DELETE FROM Courses;
-DELETE FROM Roles;
 
--- Reiniciar identidades
+-- Reiniciar identidades SOLO para tablas que usan INT IDENTITY
 DBCC CHECKIDENT ('AuditLogs', RESEED, 0);
 DBCC CHECKIDENT ('Grades', RESEED, 0);
-DBCC CHECKIDENT ('Submissions', RESEED, 0);
-DBCC CHECKIDENT ('Tasks', RESEED, 0);
+DBCC CHECKIDENT ('SubmissionFiles', RESEED, 0);
 DBCC CHECKIDENT ('Announcements', RESEED, 0);
 DBCC CHECKIDENT ('Enrollments', RESEED, 0);
 DBCC CHECKIDENT ('CourseOfferings', RESEED, 0);
-DBCC CHECKIDENT ('UserRoles', RESEED, 0);
-DBCC CHECKIDENT ('Users', RESEED, 0);
 DBCC CHECKIDENT ('Periods', RESEED, 0);
 DBCC CHECKIDENT ('Courses', RESEED, 0);
-DBCC CHECKIDENT ('Roles', RESEED, 0);
 
 -- Habilitar constraints nuevamente
 EXEC sp_MSforeachtable 'ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL';
@@ -54,77 +55,196 @@ EXEC sp_MSforeachtable 'ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL';
 PRINT 'Limpieza completada. Todas las tablas vacías.';
 
 -- =====================================================
--- INSERCIÓN COMPLETA DE DATOS ESTÁTICOS
+-- DECLARACIÓN DE GUIDS FIJOS PARA CONSISTENCIA
+-- =====================================================
+DECLARE @AdminRoleId UNIQUEIDENTIFIER = NEWID();
+DECLARE @ProfesorRoleId UNIQUEIDENTIFIER = NEWID();
+DECLARE @EstudianteRoleId UNIQUEIDENTIFIER = NEWID();
+
+DECLARE @AdminUserId UNIQUEIDENTIFIER = NEWID();
+DECLARE @Profesor1Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Profesor2Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Profesor3Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Profesor4Id UNIQUEIDENTIFIER = NEWID();
+
+DECLARE @Estudiante1Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Estudiante2Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Estudiante3Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Estudiante4Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Estudiante5Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Estudiante6Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Estudiante7Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Estudiante8Id UNIQUEIDENTIFIER = NEWID();
+
+-- GUIDS para ModuleGroup
+DECLARE @MGMatriculasId UNIQUEIDENTIFIER = 'F51DF7BE-A9FD-4166-9BB1-1C83BF1618CA';
+DECLARE @MGUsuariosId UNIQUEIDENTIFIER = '639E4AEB-233E-4E89-BE81-8751200C7C25';
+DECLARE @MGCursosId UNIQUEIDENTIFIER = '470FEB6C-1231-48B0-93E5-94B2C6CEF2E9';
+DECLARE @MGDashboardsId UNIQUEIDENTIFIER = '517D1073-93F2-47C4-AF45-B585D0144DB2';
+DECLARE @MGTareasId UNIQUEIDENTIFIER = 'C2DDC7C7-BEAB-4C12-8ED6-E89B33CA76F6';
+DECLARE @MGAuditoriaId UNIQUEIDENTIFIER = NEWID();
+DECLARE @MGAnunciosId UNIQUEIDENTIFIER = NEWID();
+DECLARE @MGCalificarId UNIQUEIDENTIFIER = NEWID();
+DECLARE @MGMisEntregasId UNIQUEIDENTIFIER = NEWID();
+
+-- =====================================================
+-- INSERCIÓN COMPLETA DE DATOS CORREGIDOS
 -- =====================================================
 
-PRINT '2. INSERTANDO NUEVOS DATOS...';
+PRINT '2. INSERTANDO NUEVOS DATOS CORREGIDOS...';
 
--- 1. Insertar Roles
-INSERT INTO Roles (Name, Description, CreatedAt) VALUES
-('Administrador', 'Administrador del sistema', GETDATE()),
-('Profesor', 'Profesor que imparte cursos', GETDATE()),
-('Estudiante', 'Estudiante que toma cursos', GETDATE());
+-- 1. Insertar Roles (con GUIDS fijos)
+INSERT INTO Roles (RoleId, RoleName, Description, CreateAt, modifiedBy, IsSoftDeleted) VALUES
+(@AdminRoleId, 'Administrador', 'Administrador del sistema', GETDATE(), @AdminUserId, 0),
+(@ProfesorRoleId, 'Profesor', 'Profesor que imparte cursos', GETDATE(), @AdminUserId, 0),
+(@EstudianteRoleId, 'Estudiante', 'Estudiante que toma cursos', GETDATE(), @AdminUserId, 0);
 
 PRINT '- Roles insertados: 3';
 
--- 2. Insertar Usuarios
-INSERT INTO Users (UserName, FullName, Email, PasswordHash, CreatedAt, IsEnabled) VALUES
--- Administrador
-('admin', 'Administrador Principal', 'admin@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
+-- 2. Insertar ModuleGroup (CORREGIDO: singular)
+INSERT INTO ModuleGroup (GroupModuleId, Description, CreateAt, CreateDate, CreatBy, ModifieBy, IsSoftDeleted) VALUES
+(@MGMatriculasId, 'Matriculas', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
+(@MGUsuariosId, 'Usuarios', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
+(@MGCursosId, 'Cursos', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
+(@MGDashboardsId, 'Dashboards', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
+(@MGTareasId, 'Tareas', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
+(@MGAuditoriaId, 'Auditoria', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
+(@MGAnunciosId, 'Anuncios', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
+(@MGCalificarId, 'Calificar', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
+(@MGMisEntregasId, 'Mis entregas', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0);
 
--- Profesores
-('mgonzalez', 'María González', 'maria.gonzalez@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('crodriguez', 'Carlos Rodríguez', 'carlos.rodriguez@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('alopez', 'Ana López', 'ana.lopez@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('jmartinez', 'José Martínez', 'jose.martinez@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
+PRINT '- ModuleGroup insertados: 9';
 
--- Estudiantes (8 estudiantes)
-('est1', 'Ana Martínez', 'ana.martinez@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('est2', 'Luis Hernández', 'luis.hernandez@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('est3', 'Sofia Ramírez', 'sofia.ramirez@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('est4', 'Carlos García', 'carlos.garcia@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('est5', 'Marta López', 'marta.lopez@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('est6', 'Pedro Sánchez', 'pedro.sanchez@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('est7', 'Laura Díaz', 'laura.diaz@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1),
-('est8', 'David Torres', 'david.torres@sistema.com', 'VGVtcFBhc3Mv.Q5hH6zsqGwJgNSzJ2zvrKjWZUwR9k6hMzR9k6hMzR9k=', GETDATE(), 1);
+-- 3. Insertar Module - SOLO LOS QUE EXISTEN EN VISTAS/CONTROLADORES REALES
+INSERT INTO Module (ModuleId, Nombre, Controller, Metodo, CreateAt, CreateDate, CreatBy, ModifieBy, IsSoftDeleted, ModuloAgrupadoId) VALUES
+
+-- Módulos de Dashboard (HomeController - EXISTE)
+(NEWID(), 'Dashboard Principal', 'Home', 'Index', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGDashboardsId),
+(NEWID(), 'Registrar Usuario', 'Home', 'Register', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGUsuariosId),
+(NEWID(), 'Recuperar Contraseña', 'Home', 'PasswordRecovery', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGUsuariosId),
+(NEWID(), 'Cambiar Contraseña', 'Home', 'ChangePassword', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGUsuariosId),
+(NEWID(), 'Política de Privacidad', 'Home', 'Privacy', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGDashboardsId),
+
+-- Módulos de Cursos (CursosController - EXISTE pero solo Index)
+(NEWID(), 'Gestión de Cursos', 'Cursos', 'Index', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGCursosId),
+
+-- Módulos de Tareas (TareasController - TODOS EXISTEN en vistas)
+(NEWID(), 'Lista de Tareas', 'Tareas', 'Index', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGTareasId),
+(NEWID(), 'Detalle de Tarea', 'Tareas', 'Detalle', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGTareasId),
+(NEWID(), 'Crear Tarea', 'Tareas', 'Crear', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGTareasId),
+(NEWID(), 'Editar Tarea', 'Tareas', 'Editar', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGTareasId),
+(NEWID(), 'Eliminar Tarea', 'Tareas', 'Delete', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGTareasId),
+
+-- Módulo para Estudiantes (TareasEstudiantes - VISTA EXISTE)
+(NEWID(), 'Mis Tareas Estudiantes', 'Tareas', 'TareasEstudiantes', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGMisEntregasId);
+
+PRINT '- Módulos REALES insertados: 15 (solo los que existen en vistas/controladores)';
+
+-- 4. Insertar RoleModules (Permisos según especificación - SOLO PARA MÓDULOS REALES)
+INSERT INTO RoleModules (ModuleRoleId, Description, CreateAt, CreateDate, CreatBy, ModifieBy, IsSoftDeleted, ModuleId, RoleId)
+SELECT 
+    NEWID(),
+    'Permiso para ' + m.Nombre,
+    GETDATE(),
+    GETDATE(),
+    @AdminUserId,
+    @AdminUserId,
+    0,
+    m.ModuleId,
+    r.RoleId
+FROM Module m
+CROSS JOIN Roles r
+WHERE 
+    -- ADMIN: Todo
+    (r.RoleId = @AdminRoleId)
+    OR
+    -- PROFESOR: Dashboard, Cursos, Tareas (crear/editar/eliminar), pero NO Register/PasswordRecovery
+    (r.RoleId = @ProfesorRoleId AND (
+        (m.Controller = 'Home' AND m.Metodo IN ('Index', 'Privacy')) OR 
+        (m.Controller = 'Cursos' AND m.Metodo = 'Index') OR
+        (m.Controller = 'Tareas' AND m.Metodo IN ('Index', 'Detalle', 'Crear', 'Editar', 'Delete'))
+    ))
+    OR
+    -- ESTUDIANTE: Dashboard, Ver tareas, Mis tareas, Autenticación
+    (r.RoleId = @EstudianteRoleId AND (
+        (m.Controller = 'Home' AND m.Metodo IN ('Index', 'Privacy')) OR 
+        (m.Controller = 'Tareas' AND m.Metodo IN ('Index', 'Detalle', 'TareasEstudiantes')) OR
+        (m.Controller = 'Account' AND m.Metodo IN ('Login', 'Logout'))
+    ));
+
+PRINT '- RoleModules REALES insertados: ' + CAST(@@ROWCOUNT AS VARCHAR);
+
+-- 5. Insertar Usuarios (con contraseñas MD5 en MAYÚSCULAS según tu función)
+INSERT INTO Users (UserId, UserName, Instructor, Email, PasswordHash, CreateAt, CreatBy, ModifieBy, IsSoftDeleted, RolId) VALUES
+-- Administrador (admin123 en MD5 MAYÚSCULAS)
+(@AdminUserId, 'admin', 'Administrador Principal', 'admin@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @AdminRoleId),
+
+-- Profesores (admin123 en MD5 MAYÚSCULAS)
+(@Profesor1Id, 'mgonzalez', 'María González', 'maria.gonzalez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
+(@Profesor2Id, 'crodriguez', 'Carlos Rodríguez', 'carlos.rodriguez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
+(@Profesor3Id, 'alopez', 'Ana López', 'ana.lopez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
+(@Profesor4Id, 'jmartinez', 'José Martínez', 'jose.martinez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
+
+-- Estudiantes (admin123 en MD5 MAYÚSCULAS)
+(@Estudiante1Id, 'est1', 'Ana Martínez', 'ana.martinez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante2Id, 'est2', 'Luis Hernández', 'luis.hernandez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante3Id, 'est3', 'Sofia Ramírez', 'sofia.ramirez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante4Id, 'est4', 'Carlos García', 'carlos.garcia@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante5Id, 'est5', 'Marta López', 'marta.lopez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante6Id, 'est6', 'Pedro Sánchez', 'pedro.sanchez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante7Id, 'est7', 'Laura Díaz', 'laura.diaz@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante8Id, 'est8', 'David Torres', 'david.torres@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId);
 
 PRINT '- Usuarios insertados: 13 (1 admin, 4 profesores, 8 estudiantes)';
 
--- 3. Asignar Roles a Usuarios
-INSERT INTO UserRoles (UserId, RoleId, AssignedAt)
-SELECT u.Id, r.Id, GETDATE()
-FROM Users u
-CROSS JOIN Roles r
-WHERE 
-    (u.UserName = 'admin' AND r.Name = 'Administrador') OR
-    (u.UserName IN ('mgonzalez', 'crodriguez', 'alopez', 'jmartinez') AND r.Name = 'Profesor') OR
-    (u.UserName LIKE 'est%' AND r.Name = 'Estudiante');
+-- 6. Insertar UserRoles (relaciones adicionales)
+INSERT INTO UserRoles (Id, UserId, RoleId, CreatAt, IsSoftDeleted) VALUES
+(NEWID(), @AdminUserId, @AdminRoleId, GETDATE(), 0),
+(NEWID(), @Profesor1Id, @ProfesorRoleId, GETDATE(), 0),
+(NEWID(), @Profesor2Id, @ProfesorRoleId, GETDATE(), 0),
+(NEWID(), @Profesor3Id, @ProfesorRoleId, GETDATE(), 0),
+(NEWID(), @Profesor4Id, @ProfesorRoleId, GETDATE(), 0),
+(NEWID(), @Estudiante1Id, @EstudianteRoleId, GETDATE(), 0),
+(NEWID(), @Estudiante2Id, @EstudianteRoleId, GETDATE(), 0),
+(NEWID(), @Estudiante3Id, @EstudianteRoleId, GETDATE(), 0),
+(NEWID(), @Estudiante4Id, @EstudianteRoleId, GETDATE(), 0),
+(NEWID(), @Estudiante5Id, @EstudianteRoleId, GETDATE(), 0),
+(NEWID(), @Estudiante6Id, @EstudianteRoleId, GETDATE(), 0),
+(NEWID(), @Estudiante7Id, @EstudianteRoleId, GETDATE(), 0),
+(NEWID(), @Estudiante8Id, @EstudianteRoleId, GETDATE(), 0);
 
-PRINT '- Roles de usuarios asignados: 13';
+PRINT '- UserRoles insertados: 13';
 
--- 4. Insertar Cursos
-INSERT INTO Courses (Code, Title, Description, CreatedAt, IsActive) VALUES
-('MAT101', 'Matemáticas Básicas', 'Álgebra, geometría y cálculo básico', GETDATE(), 1),
-('LEN102', 'Lenguaje y Literatura', 'Gramática, redacción y análisis literario', GETDATE(), 1),
-('FIS201', 'Física General', 'Mecánica, termodinámica y electromagnetismo', GETDATE(), 1),
-('QUI202', 'Química Orgánica', 'Compuestos orgánicos y reacciones químicas', GETDATE(), 1),
-('HIS301', 'Historia Universal', 'Historia mundial desde la antigüedad', GETDATE(), 1),
-('BIO302', 'Biología Celular', 'Estructura y función celular', GETDATE(), 1);
+-- 7. Insertar Cursos (manteniendo INT IDENTITY)
+INSERT INTO Courses (Code, Title, Description, CreatedAt, IsActive, IsSoftDeleted) VALUES
+('MAT101', 'Matemáticas Básicas', 'Álgebra, geometría y cálculo básico', GETDATE(), 1, 0),
+('LEN102', 'Lenguaje y Literatura', 'Gramática, redacción y análisis literario', GETDATE(), 1, 0),
+('FIS201', 'Física General', 'Mecánica, termodinámica y electromagnetismo', GETDATE(), 1, 0),
+('QUI202', 'Química Orgánica', 'Compuestos orgánicos y reacciones químicas', GETDATE(), 1, 0),
+('HIS301', 'Historia Universal', 'Historia mundial desde la antigüedad', GETDATE(), 1, 0),
+('BIO302', 'Biología Celular', 'Estructura y función celular', GETDATE(), 1, 0);
 
 PRINT '- Cursos insertados: 6';
 
--- 5. Insertar Periodos Académicos
-INSERT INTO Periods (Name, StartDate, EndDate, IsActive, CreatedAt) VALUES
-('Primer Semestre 2025', '2025-01-15', '2025-06-15', 1, GETDATE()),
-('Segundo Semestre 2025', '2025-07-01', '2025-12-15', 0, GETDATE());
+-- 8. Insertar Periodos Académicos
+INSERT INTO Periods (Name, StartDate, EndDate, IsActive, CreatedAt, IsSoftDeleted) VALUES
+('Primer Semestre 2025', '2025-01-15', '2025-06-15', 1, GETDATE(), 0),
+('Segundo Semestre 2025', '2025-07-01', '2025-12-15', 0, GETDATE(), 0);
 
 PRINT '- Periodos insertados: 2';
 
--- 6. Insertar Ofertas de Cursos (CourseOfferings)
-INSERT INTO CourseOfferings (CourseId, ProfessorId, PeriodId, Section, CreatedAt, IsActive)
+-- 9. Insertar Ofertas de Cursos (CourseOfferings)
+INSERT INTO CourseOfferings (CourseId, ProfessorId, PeriodId, Section, CreatedAt, IsActive, IsSoftDeleted)
 SELECT 
     c.Id,
-    p.Id,
+    CASE 
+        WHEN c.Code = 'MAT101' THEN @Profesor1Id
+        WHEN c.Code = 'LEN102' THEN @Profesor2Id
+        WHEN c.Code = 'FIS201' THEN @Profesor3Id
+        WHEN c.Code = 'QUI202' THEN @Profesor4Id
+        WHEN c.Code = 'HIS301' THEN @Profesor2Id
+        WHEN c.Code = 'BIO302' THEN @Profesor3Id
+    END,
     per.Id,
     CASE 
         WHEN c.Code = 'MAT101' THEN 'MAT101-01'
@@ -135,229 +255,238 @@ SELECT
         WHEN c.Code = 'BIO302' THEN 'BIO302-01'
     END,
     GETDATE(),
-    1
+    1,
+    0
 FROM Courses c
-CROSS JOIN (SELECT Id FROM Periods WHERE IsActive = 1) per
-CROSS JOIN (
-    SELECT Id, ROW_NUMBER() OVER (ORDER BY Id) as rn 
-    FROM Users 
-    WHERE UserName IN ('mgonzalez', 'crodriguez', 'alopez', 'jmartinez')
-) p
-WHERE 
-    (c.Code = 'MAT101' AND p.rn = 1) OR
-    (c.Code = 'LEN102' AND p.rn = 2) OR
-    (c.Code = 'FIS201' AND p.rn = 3) OR
-    (c.Code = 'QUI202' AND p.rn = 4) OR
-    (c.Code = 'HIS301' AND p.rn = 2) OR
-    (c.Code = 'BIO302' AND p.rn = 3);
+CROSS JOIN (SELECT Id FROM Periods WHERE IsActive = 1) per;
 
 PRINT '- Ofertas de cursos insertadas: 6';
 
--- 7. Insertar Inscripciones (Enrollments) - TODOS LOS ESTUDIANTES EN TODOS LOS CURSOS
-INSERT INTO Enrollments (CourseOfferingId, StudentId, EnrolledAt, Status)
+-- 10. Insertar Inscripciones (Enrollments) - TODOS LOS ESTUDIANTES EN TODOS LOS CURSOS
+INSERT INTO Enrollments (CourseOfferingId, StudentId, EnrolledAt, Status, IsSoftDeleted)
 SELECT 
     co.Id, 
-    u.Id, 
+    u.UserId, 
     DATEADD(DAY, -ABS(CHECKSUM(NEWID())) % 30, GETDATE()), -- Fecha aleatoria en los últimos 30 días
-    'Active'
+    'Active',
+    0
 FROM CourseOfferings co
 CROSS JOIN Users u
 WHERE u.UserName LIKE 'est%'
-ORDER BY u.Id, co.Id;
+ORDER BY u.UserName, co.Id;
 
 PRINT '- Inscripciones insertadas: ' + CAST(@@ROWCOUNT AS VARCHAR);
 
--- 8. Insertar Tareas (Tasks) - 3 tareas por curso
-INSERT INTO Tasks (CourseOfferingId, Title, Description, DueDate, CreatedBy, MaxScore)
+-- 11. Insertar Tareas (Tasks) - 3 tareas por curso
+INSERT INTO Tasks (Id, CourseOfferingId, Title, Description, DueDate, CreatedBy, MaxScore, IsSoftDeleted)
 -- Tareas para MAT101-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 1: Álgebra Lineal', 
     'Resolver ejercicios de sistemas de ecuaciones lineales', 
     '2025-02-15', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 2: Cálculo Diferencial', 
     'Problemas de límites y derivadas', 
     '2025-03-01', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 3: Geometría Analítica', 
     'Problemas de rectas y planos en el espacio', 
     '2025-03-20', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
 
 UNION ALL
 
 -- Tareas para LEN102-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 1: Análisis Literario', 
     'Analizar obra "Cien años de soledad"', 
     '2025-02-10', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'LEN102-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 2: Redacción Académica', 
     'Escribir ensayo sobre cambio climático', 
     '2025-03-05', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'LEN102-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 3: Gramática Avanzada', 
     'Ejercicios de sintaxis y morfología', 
     '2025-03-25', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'LEN102-01'
 
 UNION ALL
 
 -- Tareas para FIS201-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 1: Leyes de Newton', 
     'Problemas de aplicación de las leyes de Newton', 
     '2025-02-20', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'FIS201-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 2: Energía y Trabajo', 
     'Ejercicios de conservación de energía', 
     '2025-03-10', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'FIS201-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 3: Electromagnetismo', 
     'Problemas de campos eléctricos y magnéticos', 
     '2025-03-30', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'FIS201-01'
 
 UNION ALL
 
 -- Tareas para QUI202-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 1: Enlaces Químicos', 
     'Identificar tipos de enlaces en compuestos', 
     '2025-02-18', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'QUI202-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 2: Reacciones Orgánicas', 
     'Balancear ecuaciones de reacciones orgánicas', 
     '2025-03-08', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'QUI202-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 3: Laboratorio Virtual', 
     'Simulación de experimentos químicos', 
     '2025-03-28', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'QUI202-01'
 
 UNION ALL
 
 -- Tareas para HIS301-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 1: Revolución Industrial', 
     'Ensayo sobre impactos de la Revolución Industrial', 
     '2025-02-25', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'HIS301-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 2: Guerras Mundiales', 
     'Análisis comparativo de las guerras mundiales', 
     '2025-03-15', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'HIS301-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 3: Civilizaciones Antiguas', 
     'Estudio de civilizaciones mesoamericanas', 
     '2025-04-05', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'HIS301-01'
 
 UNION ALL
 
 -- Tareas para BIO302-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 1: Estructura Celular', 
     'Diagramar y describir organelos celulares', 
     '2025-02-22', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'BIO302-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 2: ADN y Genética', 
     'Problemas de herencia genética', 
     '2025-03-12', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'BIO302-01'
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Tarea 3: Ecosistemas', 
     'Análisis de cadenas alimenticias', 
     '2025-04-02', 
     co.ProfessorId, 
-    100
+    100,
+    0
 FROM CourseOfferings co WHERE co.Section = 'BIO302-01';
 
 PRINT '- Tareas insertadas: 18 (3 por curso)';
 
--- 9. Insertar Entregas (Submissions) - TODOS los estudiantes entregan TODAS las tareas
-INSERT INTO Submissions (TaskId, StudentId, SubmittedAt, Comments, Status, CurrentGrade)
+-- 12. Insertar Entregas (Submissions) - TODOS los estudiantes entregan TODAS las tareas
+INSERT INTO Submissions (Id, TaskId, StudentId, SubmittedAt, Comments, Status, CurrentGrade, IsSoftDeleted)
 SELECT 
+    NEWID(),
     t.Id,
     e.StudentId,
     DATEADD(DAY, -2, t.DueDate), -- Todos entregan 2 días antes del vencimiento
@@ -367,15 +496,28 @@ SELECT
         ELSE 'Entregando la tarea dentro del plazo establecido'
     END,
     'Submitted',
-    NULL
+    -- Asignar una calificación inicial basada en el estudiante (no NULL)
+    CASE 
+        WHEN u.UserName = 'est1' THEN 95.0  -- Estudiante destacado
+        WHEN u.UserName = 'est2' THEN 88.0
+        WHEN u.UserName = 'est3' THEN 92.0
+        WHEN u.UserName = 'est4' THEN 85.0
+        WHEN u.UserName = 'est5' THEN 78.0
+        WHEN u.UserName = 'est6' THEN 82.0
+        WHEN u.UserName = 'est7' THEN 90.0
+        WHEN u.UserName = 'est8' THEN 87.0
+        ELSE 80.0
+    END,
+    0
 FROM Tasks t
 INNER JOIN Enrollments e ON t.CourseOfferingId = e.CourseOfferingId
+INNER JOIN Users u ON e.StudentId = u.UserId
 ORDER BY t.Id, e.StudentId;
 
 PRINT '- Entregas insertadas: ' + CAST(@@ROWCOUNT AS VARCHAR);
 
--- 10. Insertar Calificaciones (Grades) - TODAS las entregas calificadas
-INSERT INTO Grades (SubmissionId, GraderId, Score, Feedback, GradedAt)
+-- 13. Insertar Calificaciones (Grades) - TODAS las entregas calificadas
+INSERT INTO Grades (SubmissionId, GraderId, Score, Feedback, GradedAt, IsSoftDeleted)
 SELECT 
     s.Id,
     co.ProfessorId,
@@ -402,16 +544,17 @@ SELECT
         WHEN u.UserName = 'est8' THEN 'Sólido trabajo, continuar así'
         ELSE 'Feedback general positivo'
     END,
-    DATEADD(DAY, 1, s.SubmittedAt) -- Calificado 1 día después de entrega
+    DATEADD(DAY, 1, s.SubmittedAt), -- Calificado 1 día después de entrega
+    0
 FROM Submissions s
 INNER JOIN Tasks t ON s.TaskId = t.Id
 INNER JOIN CourseOfferings co ON t.CourseOfferingId = co.Id
-INNER JOIN Users u ON s.StudentId = u.Id
+INNER JOIN Users u ON s.StudentId = u.UserId
 ORDER BY s.Id;
 
 PRINT '- Calificaciones insertadas: ' + CAST(@@ROWCOUNT AS VARCHAR);
 
--- 11. Actualizar las calificaciones actuales en Submissions
+-- 14. Actualizar las calificaciones actuales en Submissions
 UPDATE Submissions 
 SET CurrentGrade = g.Score
 FROM Submissions s
@@ -419,14 +562,15 @@ INNER JOIN Grades g ON s.Id = g.SubmissionId;
 
 PRINT '- Calificaciones actualizadas en entregas';
 
--- 12. Insertar Anuncios (Announcements)
-INSERT INTO Announcements (CourseOfferingId, Title, Body, PostedAt, PostedBy)
+-- 15. Insertar Anuncios (Announcements)
+INSERT INTO Announcements (CourseOfferingId, Title, Body, PostedAt, PostedBy, IsSoftDeleted)
 -- Anuncios para MAT101-01
 SELECT co.Id, 
     'Bienvenida al Curso de Matemáticas', 
     'Bienvenidos al curso de Matemáticas Básicas. Revisen el sílabo en la plataforma.', 
     '2025-01-16 08:00:00', 
-    co.ProfessorId
+    co.ProfessorId,
+    0
 FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
 
 UNION ALL
@@ -435,7 +579,8 @@ SELECT co.Id,
     'Recordatorio: Tarea 1', 
     'Recuerden que la Tarea 1 vence el 15 de febrero. No olviden entregarla.', 
     '2025-02-10 10:00:00', 
-    co.ProfessorId
+    co.ProfessorId,
+    0
 FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
 
 UNION ALL
@@ -445,7 +590,8 @@ SELECT co.Id,
     'Inicio de Clases de Lenguaje', 
     'Estimados estudiantes, las clases inician el lunes 20 de enero. Favor revisar material.', 
     '2025-01-17 09:00:00', 
-    co.ProfessorId
+    co.ProfessorId,
+    0
 FROM CourseOfferings co WHERE co.Section = 'LEN102-01'
 
 UNION ALL
@@ -455,7 +601,8 @@ SELECT co.Id,
     'Laboratorio de Física', 
     'El primer laboratorio será el 25 de enero. Traer calculadora y cuaderno de apuntes.', 
     '2025-01-18 11:00:00', 
-    co.ProfessorId
+    co.ProfessorId,
+    0
 FROM CourseOfferings co WHERE co.Section = 'FIS201-01'
 
 UNION ALL
@@ -465,7 +612,8 @@ SELECT co.Id,
     'Material de Química', 
     'El libro de texto ya está disponible en la biblioteca.', 
     '2025-01-19 14:00:00', 
-    co.ProfessorId
+    co.ProfessorId,
+    0
 FROM CourseOfferings co WHERE co.Section = 'QUI202-01'
 
 UNION ALL
@@ -475,7 +623,8 @@ SELECT co.Id,
     'Documentales Recomendados', 
     'Lista de documentales históricos disponibles en la plataforma.', 
     '2025-01-20 16:00:00', 
-    co.ProfessorId
+    co.ProfessorId,
+    0
 FROM CourseOfferings co WHERE co.Section = 'HIS301-01'
 
 UNION ALL
@@ -485,7 +634,8 @@ SELECT co.Id,
     'Salida de Campo', 
     'Programación de salida de campo para observación de ecosistemas.', 
     '2025-01-21 13:00:00', 
-    co.ProfessorId
+    co.ProfessorId,
+    0
 FROM CourseOfferings co WHERE co.Section = 'BIO302-01';
 
 PRINT '- Anuncios insertados: 7';
@@ -494,12 +644,15 @@ PRINT '- Anuncios insertados: 7';
 -- VERIFICACIÓN FINAL DE DATOS INSERTADOS
 -- =====================================================
 
-PRINT '3. VERIFICANDO DATOS INSERTADOS...';
+PRINT '3. VERIFICANDO DATOS INSERTADOS CORREGIDOS...';
 
 SELECT 
     'Roles' as Tabla, COUNT(*) as Registros FROM Roles
 UNION ALL SELECT 'Users', COUNT(*) FROM Users
 UNION ALL SELECT 'UserRoles', COUNT(*) FROM UserRoles
+UNION ALL SELECT 'ModuleGroup', COUNT(*) FROM ModuleGroup
+UNION ALL SELECT 'Module', COUNT(*) FROM Module
+UNION ALL SELECT 'RoleModules', COUNT(*) FROM RoleModules
 UNION ALL SELECT 'Courses', COUNT(*) FROM Courses
 UNION ALL SELECT 'Periods', COUNT(*) FROM Periods
 UNION ALL SELECT 'CourseOfferings', COUNT(*) FROM CourseOfferings
@@ -510,29 +663,33 @@ UNION ALL SELECT 'Grades', COUNT(*) FROM Grades
 UNION ALL SELECT 'Announcements', COUNT(*) FROM Announcements
 ORDER BY Tabla;
 
--- Verificación específica de inscripciones
-PRINT '=== VERIFICACIÓN DE INSCRIPCIONES ===';
+-- Verificación específica de módulos REALES
+PRINT '=== VERIFICACIÓN DE MÓDULOS REALES (SOLO LOS QUE EXISTEN) ===';
+SELECT Controller, Metodo as Action, Nombre 
+FROM Module 
+ORDER BY Controller, Metodo;
+
+-- Verificación de permisos por rol
+PRINT '=== VERIFICACIÓN DE PERMISOS POR ROL (SOLO MÓDULOS REALES) ===';
 
 SELECT 
-    c.Code as Curso,
-    c.Title as NombreCurso,
-    COUNT(DISTINCT e.StudentId) as EstudiantesInscritos,
-    COUNT(DISTINCT t.Id) as TareasCreadas,
-    COUNT(DISTINCT s.Id) as EntregasTotales,
-    COUNT(DISTINCT g.Id) as Calificaciones
-FROM Courses c
-JOIN CourseOfferings co ON c.Id = co.CourseId
-LEFT JOIN Enrollments e ON co.Id = e.CourseOfferingId
-LEFT JOIN Tasks t ON co.Id = t.CourseOfferingId
-LEFT JOIN Submissions s ON t.Id = s.TaskId
-LEFT JOIN Grades g ON s.Id = g.SubmissionId
-GROUP BY c.Code, c.Title
-ORDER BY c.Code;
+    r.RoleName,
+    m.Controller,
+    m.Metodo as Action,
+    m.Nombre
+FROM Roles r
+INNER JOIN RoleModules rm ON r.RoleId = rm.RoleId
+INNER JOIN Module m ON rm.ModuleId = m.ModuleId
+WHERE rm.IsSoftDeleted = 0
+ORDER BY r.RoleName, m.Controller, m.Metodo;
 
 PRINT '=== SCRIPT COMPLETADO EXITOSAMENTE ===';
 PRINT 'RESUMEN:';
 PRINT '- Todos los datos anteriores fueron ELIMINADOS';
-PRINT '- Nuevos datos estáticos insertados';
+PRINT '- SOLO módulos que existen en vistas/controladores reales';
+PRINT '- Contraseñas MD5: admin123';
+PRINT '- NOMBRES DE ACCIONES EN ESPAÑOL para coincidir con controladores';
+PRINT '- Permisos configurados según especificación (solo módulos reales)';
 PRINT '- TODOS los estudiantes están inscritos en TODOS los cursos';
 PRINT '- TODAS las tareas fueron entregadas por TODOS los estudiantes';
 PRINT '- TODAS las entregas fueron calificadas';

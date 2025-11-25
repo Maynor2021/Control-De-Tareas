@@ -1,6 +1,7 @@
 using Control_De_Tareas.Authorization;
 using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
+using Control_De_Tareas.Data.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -115,25 +116,5 @@ namespace Control_De_Tareas.Controllers
 
             return View();
         }
-    }
-
-    // ---------------------------------------------------
-    // VIEW MODEL PARA CREAR TAREA
-    // ---------------------------------------------------
-    public class TareaCreateVm
-    {
-        public int CourseOfferingId { get; set; }  // Es INT en tu base de datos
-
-        [Required]
-        [StringLength(200)]
-        public string Title { get; set; } = string.Empty;
-
-        public string? Description { get; set; }
-
-        [Required]
-        public DateTime DueDate { get; set; }
-
-        [Range(0, 10000)]
-        public decimal MaxScore { get; set; } = 100;
     }
 }
