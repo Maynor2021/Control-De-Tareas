@@ -18,7 +18,6 @@ namespace Control_De_Tareas.Controllers
             _httpAccessor = httpAccessor;
         }
 
-        // Obtener usuario desde Session
         private UserVm GetCurrentUser()
         {
             var encoded = HttpContext.Session.GetString("UserSession");
@@ -28,7 +27,6 @@ namespace Control_De_Tareas.Controllers
             return JsonConvert.DeserializeObject<UserVm>(json);
         }
 
-        // Redirección por rol
         public IActionResult Index()
         {
             var user = GetCurrentUser();
@@ -45,10 +43,8 @@ namespace Control_De_Tareas.Controllers
             };
         }
 
-        // ===================== ADMIN ============================
         public async Task<IActionResult> Admin()
         {
-            // Contar profesores y estudiantes según Rol.Nombre
             int totalProfesores = await _context.Users.CountAsync(u => u.Rol.RoleName == "Profesor");
             int totalEstudiantes = await _context.Users.CountAsync(u => u.Rol.RoleName == "Estudiante");
 
@@ -76,7 +72,6 @@ namespace Control_De_Tareas.Controllers
             return View(vm);
         }
 
-        // ===================== PROFESOR ============================
         public async Task<IActionResult> Profesor()
         {
             var user = GetCurrentUser();
@@ -94,7 +89,6 @@ namespace Control_De_Tareas.Controllers
                 .OrderByDescending(t => t.DueDate)
                 .ToListAsync();
 
-            // Próximas entregas
             var proximas = await _context.Submissions
                 .Include(s => s.Task)
                     .ThenInclude(t => t.CourseOffering)
@@ -137,7 +131,6 @@ namespace Control_De_Tareas.Controllers
             return View(vm);
         }
 
-        // ===================== ESTUDIANTE ============================
         public async Task<IActionResult> Estudiante()
         {
             var user = GetCurrentUser();

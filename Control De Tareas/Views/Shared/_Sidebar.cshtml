@@ -21,10 +21,10 @@
 
 @{
     UserVm usuarioObjeto = null;
-    
+
     // Leer sesión del usuario
     var sesionBase64 = Context.Session.GetString("UserSession");
-    
+
     if (!string.IsNullOrEmpty(sesionBase64))
     {
         try
@@ -73,8 +73,8 @@
                     {
                         <!-- Menú con dropdown (múltiples módulos) -->
                         <li class="nav-item mb-2">
-                            <a class="nav-link dropdown-toggle d-flex align-items-center text-dark" 
-                               href="#submenu@(menu.GroupModuleId)" 
+                            <a class="nav-link dropdown-toggle d-flex align-items-center text-dark"
+                               href="#submenu@(menu.GroupModuleId)"
                                data-bs-toggle="collapse"
                                aria-expanded="false"
                                style="padding: 0.75rem 1rem; cursor: pointer;">
@@ -87,7 +87,7 @@
                                 <i class="bi bi-@iconoGrupo me-2" style="font-size: 1.1rem;"></i>
                                 <span class="menu-text">@menu.Descripcion</span>
                             </a>
-                            
+
                             <div class="collapse" id="submenu@(menu.GroupModuleId)">
                                 <ul class="submenu-list">
                                     @foreach (var submenu in menu.Modulos)
@@ -117,9 +117,9 @@
                         var isActive = modulo.Controlador == currentController && modulo.Metodo == currentAction;
                         var clave = $"{modulo.Controlador}/{modulo.Metodo}";
                         var icono = iconos.ContainsKey(clave) ? iconos[clave] : "circle";
-                        
+
                         <li class="nav-item mb-2">
-                            <a asp-controller="@modulo.Controlador" 
+                            <a asp-controller="@modulo.Controlador"
                                asp-action="@modulo.Metodo"
                                class="nav-link d-flex align-items-center text-dark @(isActive ? "active" : "")"
                                style="padding: 0.75rem 1rem; border-left: 3px solid transparent; border-radius: 8px; @(isActive ? "border-left-color: #0d6efd; background-color: rgba(13, 110, 253, 0.1); font-weight: 500;" : "")">
@@ -183,23 +183,23 @@ else
         border-left: 2px solid transparent;
     }
 
-    .submenu-item:hover {
-        background-color: rgba(13, 110, 253, 0.08);
-        color: #0d6efd;
-        border-left-color: #0d6efd;
-        transform: translateX(3px);
-    }
+        .submenu-item:hover {
+            background-color: rgba(13, 110, 253, 0.08);
+            color: #0d6efd;
+            border-left-color: #0d6efd;
+            transform: translateX(3px);
+        }
 
-    .submenu-item.active {
-        background-color: rgba(13, 110, 253, 0.15);
-        color: #0d6efd;
-        border-left-color: #0d6efd;
-        font-weight: 500;
-    }
+        .submenu-item.active {
+            background-color: rgba(13, 110, 253, 0.15);
+            color: #0d6efd;
+            border-left-color: #0d6efd;
+            font-weight: 500;
+        }
 
-    .submenu-item i {
-        color: inherit;
-    }
+        .submenu-item i {
+            color: inherit;
+        }
 
     /* Animación del dropdown toggle */
     .nav-link.dropdown-toggle::after {
