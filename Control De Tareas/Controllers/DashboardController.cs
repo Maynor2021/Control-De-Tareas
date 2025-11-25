@@ -18,6 +18,7 @@ namespace Control_De_Tareas.Controllers
             _httpAccessor = httpAccessor;
         }
 
+        // Obtener usuario desde Session
         private UserVm GetCurrentUser()
         {
             var encoded = HttpContext.Session.GetString("UserSession");
@@ -27,6 +28,7 @@ namespace Control_De_Tareas.Controllers
             return JsonConvert.DeserializeObject<UserVm>(json);
         }
 
+        // Redirección por rol
         public IActionResult Index()
         {
             var user = GetCurrentUser();
@@ -34,27 +36,41 @@ namespace Control_De_Tareas.Controllers
 
             string rol = user.Rol.Nombre;
 
-            if (rol == "Administrador") return RedirectToAction(nameof(Admin));
-            if (rol == "Profesor") return RedirectToAction(nameof(Profesor));
-            if (rol == "Estudiante") return RedirectToAction(nameof(Estudiante));
-
-            return RedirectToAction("Login", "Home");
+            return rol switch
+            {
+                "Administrador" => RedirectToAction(nameof(Admin)),
+                "Profesor" => RedirectToAction(nameof(Profesor)),
+                "Estudiante" => RedirectToAction(nameof(Estudiante)),
+                _ => RedirectToAction("Login", "Home")
+            };
         }
 
         // ===================== ADMIN ============================
         public async Task<IActionResult> Admin()
         {
+            // Contar profesores y estudiantes según Rol.Nombre
+            int totalProfesores = await _context.Users.CountAsync(u => u.Rol.RoleName == "Profesor");
+            int totalEstudiantes = await _context.Users.CountAsync(u => u.Rol.RoleName == "Estudiante");
+
+            var actividades = await _context.AuditLogs
+                .OrderByDescending(a => a.CreatedAt)
+                .Take(10)
+                .Select(a => new ActividadVm
+                {
+                    Mensaje = $"{a.Action} - {a.Entity}",
+                    Fecha = a.CreatedAt,
+                    Tipo = a.Entity
+                })
+                .ToListAsync();
+
             var vm = new AdminDashboardVm
             {
                 TotalUsuarios = await _context.Users.CountAsync(),
                 TotalCursos = await _context.Courses.CountAsync(),
                 TotalTareas = await _context.Tareas.CountAsync(),
-
-                UltimasActividades = await _context.AuditLogs
-                    .OrderByDescending(a => a.CreatedAt)
-                    .Take(8)
-                    .Select(a => $"{a.CreatedAt:dd/MM HH:mm} - {a.Action} - {a.Entity}")
-                    .ToListAsync()
+                TotalProfesores = totalProfesores,
+                TotalEstudiantes = totalEstudiantes,
+                ActividadReciente = actividades
             };
 
             return View(vm);
@@ -73,18 +89,26 @@ namespace Control_De_Tareas.Controllers
                 .Where(c => c.ProfessorId == profesorId)
                 .ToListAsync();
 
-            var tareas = await _context.Tareas
+            var tareasProfesor = await _context.Tareas
                 .Where(t => t.CreatedBy == profesorId && !t.IsSoftDeleted)
                 .OrderByDescending(t => t.DueDate)
-                .Take(20)
-                .Select(t => new TareaVm
+                .ToListAsync();
+
+            // Próximas entregas
+            var proximas = await _context.Submissions
+                .Include(s => s.Task)
+                    .ThenInclude(t => t.CourseOffering)
+                        .ThenInclude(co => co.Course)
+                .Where(s => tareasProfesor.Select(t => t.Id).Contains(s.TaskId))
+                .GroupBy(s => s.TaskId)
+                .Select(g => new EntregaProximaProfesorVm
                 {
-                    Id = t.Id,
-                    Titulo = t.Title,
-                    Descripcion = t.Description,
-                    FechaEntrega = t.DueDate,
-                    MaxScore = t.MaxScore
+                    CourseTitle = g.First().Task.CourseOffering.Course.Title,
+                    TaskTitle = g.First().Task.Title,
+                    DueDate = g.First().Task.DueDate,
+                    StudentsCount = g.Count()
                 })
+                .Take(8)
                 .ToListAsync();
 
             var vm = new ProfesorDashboardVm
@@ -97,7 +121,17 @@ namespace Control_De_Tareas.Controllers
                     Titulo = c.Course.Title,
                     Seccion = c.Section
                 }).ToList(),
-                TareasPorCalificar = tareas
+                TareasPorCalificar = tareasProfesor.Select(t => new TareaVm
+                {
+                    Id = t.Id,
+                    Titulo = t.Title,
+                    Descripcion = t.Description,
+                    FechaEntrega = t.DueDate,
+                    MaxScore = t.MaxScore
+                }).ToList(),
+                TareasActivas = tareasProfesor.Count,
+                PendientesCalificar = await _context.Submissions.CountAsync(s => tareasProfesor.Select(t => t.Id).Contains(s.TaskId)),
+                ProximasEntregas = proximas
             };
 
             return View(vm);
@@ -146,11 +180,18 @@ namespace Control_De_Tareas.Controllers
                 })
                 .ToList();
 
-            var ultimasCalificaciones = await _context.Submissions
+            var notas = await _context.Submissions
+                .Where(s => s.StudentId == estudianteId && s.CurrentGrade != null)
+                .Select(s => s.CurrentGrade)
+                .ToListAsync();
+
+            decimal? promedio = notas.Any() ? notas.Average() : null;
+
+            var ultimCalif = await _context.Submissions
                 .Include(s => s.Task)
                     .ThenInclude(t => t.CourseOffering)
                         .ThenInclude(co => co.Course)
-                .Where(s => s.StudentId == estudianteId && s.CurrentGrade != null)
+                .Where(s => s.StudentId == estudianteId)
                 .OrderByDescending(s => s.SubmittedAt)
                 .Take(6)
                 .Select(s => new CalificacionVm
@@ -159,16 +200,7 @@ namespace Control_De_Tareas.Controllers
                     Tarea = s.Task.Title,
                     Nota = s.CurrentGrade ?? 0,
                     Fecha = s.SubmittedAt
-                })
-                .ToListAsync();
-
-            decimal? promedio = null;
-            var notas = await _context.Submissions
-                .Where(s => s.StudentId == estudianteId && s.CurrentGrade != null)
-                .Select(s => s.CurrentGrade)
-                .ToListAsync();
-
-            if (notas.Any()) promedio = notas.Average();
+                }).ToListAsync();
 
             var proximas = tareas
                 .OrderBy(t => t.DueDate)
@@ -187,10 +219,10 @@ namespace Control_De_Tareas.Controllers
                 NombreEstudiante = user.Nombre,
                 CursosInscritos = cursosInscritos,
                 TareasPendientes = pendientes,
-                UltimasCalificaciones = ultimasCalificaciones,
+                UltimasCalificaciones = ultimCalif,
                 PromedioGeneral = promedio,
-                PendientesPorCurso = new List<TareasPorCursoVm>(),
-                ProximasEntregas = proximas
+                ProximasEntregas = proximas,
+                PendientesPorCurso = new List<TareasPorCursoVm>()
             };
 
             return View(vm);

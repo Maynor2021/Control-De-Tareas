@@ -1,28 +1,24 @@
-﻿// Ruta: Control_De_Tareas\Models\EstudianteDashboardVm.cs
-using System;
-using System.Collections.Generic;
-
-namespace Control_De_Tareas.Models
+﻿namespace Control_De_Tareas.Models
 {
     public class EstudianteDashboardVm
     {
         public string NombreEstudiante { get; set; } = "Estudiante";
 
-        public List<CursoInscritoVm> CursosInscritos { get; set; } = new List<CursoInscritoVm>();
+        // Cursos
+        public List<CursoInscritoVm> CursosInscritos { get; set; } = new();
 
-        // Tareas pendientes (listas simples)
-        public List<EntregaPendienteVm> TareasPendientes { get; set; } = new List<EntregaPendienteVm>();
+        // Tareas pendientes
+        public List<EntregaPendienteVm> TareasPendientes { get; set; } = new();
 
-        // Últimas calificaciones
-        public List<CalificacionVm> UltimasCalificaciones { get; set; } = new List<CalificacionVm>();
+        // Próximas tareas (tarjeta superior)
+        public List<TareaVm> ProximasEntregas { get; set; } = new();
 
-        // Promedio general (nullable)
+        // Calificaciones
+        public List<CalificacionVm> UltimasCalificaciones { get; set; } = new();
+
         public decimal? PromedioGeneral { get; set; }
 
-        // Tareas por curso (para el accordion)
-        public List<TareasPorCursoVm> PendientesPorCurso { get; set; } = new List<TareasPorCursoVm>();
-
-        // Próximas entregas (puede reutilizar TareaVm o un DTO específico)
-        public List<TareaVm> ProximasEntregas { get; set; } = new List<TareaVm>();
+        // Datos agrupados por curso (para el accordion)
+        public List<TareasPorCursoVm> PendientesPorCurso { get; set; } = new();
     }
 }
