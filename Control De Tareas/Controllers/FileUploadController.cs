@@ -2,6 +2,9 @@
 using Control_De_Tareas.Models;
 using Control_De_Tareas.Services;
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Control_De_Tareas.Controllers
@@ -54,7 +57,10 @@ namespace Control_De_Tareas.Controllers
                     uniqueFileName
                 );
 
-                TempData["Success"] = $"Archivo '{model.File.FileName}' subido exitosamente en: {filePath}";
+                TempData["Success"] = $"Archivo '{model.File.FileName}' subido exitosamente.";
+                TempData["FileName"] = model.File.FileName;
+                TempData["FileSize"] = FormatFileSize(model.File.Length);
+
                 return RedirectToAction(nameof(Upload));
             }
             catch (Exception ex)
@@ -63,5 +69,205 @@ namespace Control_De_Tareas.Controllers
                 return View(model);
             }
         }
+
+        // GET: FileUpload/List
+        [HttpGet]
+        public IActionResult List(int? courseOfferingId, int? taskId)
+        {
+            var uploadsPath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "uploads"
+            );
+
+            // Si no existe la carpeta, mostrar vista vacía
+            if (!Directory.Exists(uploadsPath))
+            {
+                ViewBag.Files = new List<FileInfoVm>();
+                return View();
+            }
+
+            var files = new List<FileInfoVm>();
+
+            try
+            {
+                // Si se especifican filtros por curso y tarea
+                if (courseOfferingId.HasValue && taskId.HasValue)
+                {
+                    var specificPath = Path.Combine(
+                        uploadsPath,
+                        $"courseOffering_{courseOfferingId.Value}",
+                        $"task_{taskId.Value}"
+                    );
+
+                    if (Directory.Exists(specificPath))
+                    {
+                        var dirInfo = new DirectoryInfo(specificPath);
+                        files = dirInfo.GetFiles()
+                            .Select(f => new FileInfoVm
+                            {
+                                FileName = f.Name,
+                                FileSize = FormatFileSize(f.Length),
+                                UploadDate = f.CreationTime,
+                                FilePath = f.FullName,
+                                CourseOfferingId = courseOfferingId.Value,
+                                TaskId = taskId.Value
+                            })
+                            .OrderByDescending(f => f.UploadDate)
+                            .ToList();
+                    }
+                }
+                else
+                {
+                    // Listar todos los archivos
+                    var rootDir = new DirectoryInfo(uploadsPath);
+                    files = rootDir.GetFiles("*.*", SearchOption.AllDirectories)
+                        .Select(f => new FileInfoVm
+                        {
+                            FileName = f.Name,
+                            FileSize = FormatFileSize(f.Length),
+                            UploadDate = f.CreationTime,
+                            FilePath = f.FullName,
+                            CourseOfferingId = ExtractCourseOfferingId(f.DirectoryName),
+                            TaskId = ExtractTaskId(f.DirectoryName)
+                        })
+                        .OrderByDescending(f => f.UploadDate)
+                        .Take(50) // Limitar a 50 archivos más recientes
+                        .ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Error al cargar archivos: {ex.Message}";
+                files = new List<FileInfoVm>();
+            }
+
+            ViewBag.Files = files;
+            return View();
+        }
+
+        // GET: FileUpload/DownloadByName
+        [HttpGet]
+        public IActionResult DownloadByName(string fileName, int? courseOfferingId, int? taskId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(fileName))
+                {
+                    TempData["Error"] = "Nombre de archivo no válido.";
+                    return RedirectToAction(nameof(List));
+                }
+
+                if (!courseOfferingId.HasValue || !taskId.HasValue)
+                {
+                    TempData["Error"] = "Información de ubicación no válida.";
+                    return RedirectToAction(nameof(List));
+                }
+
+                // Construir la ruta del archivo
+                string uploadsPath = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "uploads",
+                    $"courseOffering_{courseOfferingId.Value}",
+                    $"task_{taskId.Value}",
+                    fileName
+                );
+
+                // Verificar que el archivo existe
+                if (!System.IO.File.Exists(uploadsPath))
+                {
+                    TempData["Error"] = "El archivo no existe o fue eliminado.";
+                    return RedirectToAction(nameof(List));
+                }
+
+                // Leer el archivo
+                byte[] fileBytes = System.IO.File.ReadAllBytes(uploadsPath);
+
+                // Determinar el Content-Type
+                string contentType = GetContentType(Path.GetExtension(fileName));
+
+                // Retornar el archivo
+                return File(fileBytes, contentType, fileName);
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Error al descargar: {ex.Message}";
+                return RedirectToAction(nameof(List));
+            }
+        }
+
+       
+        private string FormatFileSize(long bytes)
+        {
+            string[] sizes = { "B", "KB", "MB", "GB" };
+            double len = bytes;
+            int order = 0;
+            while (len >= 1024 && order < sizes.Length - 1)
+            {
+                order++;
+                len = len / 1024;
+            }
+            return $"{len:0.##} {sizes[order]}";
+        }
+
+   
+        private int? ExtractCourseOfferingId(string path)
+        {
+            try
+            {
+                var parts = path.Split(Path.DirectorySeparatorChar);
+                var courseOffering = parts.FirstOrDefault(p => p.StartsWith("courseOffering_"));
+                if (courseOffering != null)
+                {
+                    var idString = courseOffering.Replace("courseOffering_", "");
+                    if (int.TryParse(idString, out int id))
+                        return id;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private int? ExtractTaskId(string path)
+        {
+            try
+            {
+                var parts = path.Split(Path.DirectorySeparatorChar);
+                var task = parts.FirstOrDefault(p => p.StartsWith("task_"));
+                if (task != null)
+                {
+                    var idString = task.Replace("task_", "");
+                    if (int.TryParse(idString, out int id))
+                        return id;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+     
+        private string GetContentType(string extension)
+        {
+            return extension.ToLower() switch
+            {
+                ".pdf" => "application/pdf",
+                ".doc" => "application/msword",
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".txt" => "text/plain",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                _ => "application/octet-stream" // Default para descarga directa
+            };
+        }
+    }
+
+    public class FileInfoVm
+    {
+        public string FileName { get; set; }
+        public string FileSize { get; set; }
+        public DateTime UploadDate { get; set; }
+        public string FilePath { get; set; }
+        public int? CourseOfferingId { get; set; }
+        public int? TaskId { get; set; }
     }
 }
