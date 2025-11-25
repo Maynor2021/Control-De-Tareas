@@ -8,21 +8,25 @@ namespace Control_De_Tareas.Data
     {
         public ContextDB(DbContextOptions<ContextDB> options) : base(options)
         {
+        }
 
-  // ========== DbSets (Tablas) ==========
+        // ========== DbSets (Tablas) ==========
         public DbSet<Users> Users { get; set; }
         public DbSet<Roles> Roles { get; set; }
         public DbSet<Tareas> Tareas { get; set; }
         public DbSet<Submissions> Submissions { get; set; }
+        public DbSet<Courses> Courses { get; set; }
         public DbSet<Module> Module { get; set; }
         public DbSet<ModuleGroup> ModuleGroup { get; set; }
         public DbSet<RoleModules> RoleModules { get; set; }
         public DbSet<UserRoles> UserRoles { get; set; }
+        public DbSet<AuditLogs> AuditLogs { get; set; }
         public DbSet<CourseOfferings> CourseOfferings { get; set; }
         public DbSet<Enrollments> Enrollments { get; set; }
-        public DbSet<Announcements> Announcements { get; set; }
         public DbSet<Periods> Periods { get; set; }
-
+        public DbSet<Grades> Grades { get; set; }
+        public DbSet<SubmissionFiles> SubmissionFiles { get; set; }
+        public DbSet<Announcements> Announcements { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
