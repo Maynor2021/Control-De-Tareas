@@ -483,4 +483,7 @@ namespace Control_De_Tareas.Data.Configurations
             builder.HasIndex(p => p.IsActive);
         }
     }
+
+   
+
 }
