@@ -2,11 +2,13 @@
 @{
     ViewData["Title"] = "Detalle de Tarea";
     var submission = ViewBag.Submission as Control_De_Tareas.Data.Entitys.Submissions;
+    var totalEntregas = ViewBag.TotalEntregas as int?;
+    var entregasCalificadas = ViewBag.EntregasCalificadas as int?;
 }
 
 <h2>@Model.Title</h2>
 
-<p><strong>Curso:</strong> @Model.CourseOffering?.Course?.Description</p>
+<p><strong>Curso:</strong> @Model.CourseOffering?.Course?.Title</p>
 <p><strong>Descripción:</strong> @Model.Description</p>
 <p><strong>Fecha límite:</strong> @Model.DueDate.ToLocalTime().ToString("g")</p>
 <p><strong>Puntos máximos:</strong> @Model.MaxScore</p>
@@ -38,10 +40,19 @@
     }
 }
 
+@if (User.IsInRole("Profesor"))
+{
+    <h4>Estadísticas para Profesor</h4>
+    <p><strong>Total de entregas:</strong> @(totalEntregas ?? 0)</p>
+    <p><strong>Entregas calificadas:</strong> @(entregasCalificadas ?? 0)</p>
+
+    <a asp-controller="Submissions" asp-action="Index" asp-route-taskId="@Model.Id"
+       class="btn btn-info">Ver todas las entregas</a>
+    <a asp-action="Editar" asp-route-id="@Model.Id" class="btn btn-primary">Editar Tarea</a>
+}
 
 @if (User.IsInRole("Administrador"))
 {
     <a asp-action="Editar" asp-route-id="@Model.Id" class="btn btn-primary">Editar</a>
     <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Eliminar</a>
 }
-

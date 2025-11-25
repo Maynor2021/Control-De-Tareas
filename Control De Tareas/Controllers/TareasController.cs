@@ -4,14 +4,13 @@ using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Data.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
 namespace Control_De_Tareas.Controllers
 {
-    [Authorize] // requiere autenticación
+    [Authorize]
     public class TareasController : Controller
     {
         private readonly ContextDB _context;
@@ -23,36 +22,36 @@ namespace Control_De_Tareas.Controllers
             _logger = logger;
         }
 
-        // ---------------------------------------------------
-        // INDEX - TODOS PUEDEN VER LA LISTA DE TAREAS
-        // ---------------------------------------------------
         public async Task<IActionResult> Index()
         {
             var tareas = await _context.Tareas
                 .Where(t => !t.IsSoftDeleted)
                 .Include(t => t.CourseOffering)
                     .ThenInclude(co => co.Course)
+                .Include(t => t.CreatedByUser)
                 .OrderBy(t => t.DueDate)
                 .ToListAsync();
 
             return View(tareas);
         }
 
-        // ---------------------------------------------------
-        // CREAR TAREA (GET) - SOLO ADMIN
-        // ---------------------------------------------------
         [Authorize(Policy = "Admin")]
         public IActionResult Crear()
         {
-            // Si necesitas enviar CourseOfferings a la vista:
-            // ViewBag.CourseOfferings = _context.CourseOfferings.ToList();
+            var courseOfferings = _context.CourseOfferings
+                .Where(co => !co.IsSoftDeleted && co.IsActive)
+                .Include(co => co.Course)
+                .Select(co => new SelectListItem
+                {
+                    Value = co.Id.ToString(),
+                    Text = $"{co.Course.Code} - {co.Course.Title} - Sección {co.Section}"
+                })
+                .ToList();
 
+            ViewBag.CourseOfferings = courseOfferings;
             return View();
         }
 
-        // ---------------------------------------------------
-        // CREAR TAREA (POST) - SOLO ADMIN
-        // ---------------------------------------------------
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Policy = "Admin")]
@@ -61,16 +60,13 @@ namespace Control_De_Tareas.Controllers
             if (!ModelState.IsValid)
                 return View(vm);
 
-            // Obtener GUID del usuario autenticado
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(claim, out var userGuid))
             {
-                _logger.LogWarning("Crear Tarea: Claim inválido");
                 ModelState.AddModelError("", "No se pudo identificar al usuario.");
                 return View(vm);
             }
 
-            // Validar que existe el CourseOffering
             var existsCO = await _context.CourseOfferings.AnyAsync(co => co.Id == vm.CourseOfferingId);
             if (!existsCO)
             {
@@ -78,7 +74,6 @@ namespace Control_De_Tareas.Controllers
                 return View(vm);
             }
 
-            // Crear entidad Tareas
             var tarea = new Tareas
             {
                 Id = Guid.NewGuid(),
@@ -105,16 +100,121 @@ namespace Control_De_Tareas.Controllers
             }
         }
 
-        // ---------------------------------------------------
-        // ENTREGAR (GET) - SOLO ESTUDIANTES
-        // ---------------------------------------------------
-        [EstudianteAuthorize]
-        public IActionResult Entregar(int id)
+        [Authorize(Roles = "Administrador,Profesor,Estudiante")]
+        public async Task<IActionResult> Detalle(Guid id)
         {
-            // Puedes cargar la tarea aquí si quieres:
-            // var tarea = _context.Tareas.Find(id);
+            var tarea = await _context.Tareas
+                .Include(t => t.CourseOffering)
+                    .ThenInclude(co => co.Course)
+                .Include(t => t.CreatedByUser)
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsSoftDeleted);
 
-            return View();
+            if (tarea == null)
+            {
+                return NotFound();
+            }
+
+            // CARGAR SUBMISSION SI ES ESTUDIANTE
+            if (User.IsInRole("Estudiante"))
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (Guid.TryParse(userId, out var studentId))
+                {
+                    var submission = await _context.Submissions
+                        .FirstOrDefaultAsync(s => s.TaskId == id && s.StudentId == studentId);
+                    ViewBag.Submission = submission;
+                }
+            }
+
+            // SI ES PROFESOR, PODEMOS CARGAR INFORMACIÓN ADICIONAL
+            if (User.IsInRole("Profesor"))
+            {
+                var totalEntregas = await _context.Submissions
+                    .CountAsync(s => s.TaskId == id && !s.IsSoftDeleted);
+                var entregasCalificadas = await _context.Submissions
+                    .CountAsync(s => s.TaskId == id && s.CurrentGrade.HasValue && !s.IsSoftDeleted);
+
+                ViewBag.TotalEntregas = totalEntregas;
+                ViewBag.EntregasCalificadas = entregasCalificadas;
+            }
+
+            return View(tarea);
+        }
+
+        [Authorize(Policy = "Admin")]
+        public async Task<IActionResult> Editar(Guid id)
+        {
+            var tarea = await _context.Tareas
+                .Include(t => t.CourseOffering)
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsSoftDeleted);
+
+            if (tarea == null)
+            {
+                return NotFound();
+            }
+
+            ViewBag.CourseOffering = tarea.CourseOffering;
+            return View(tarea);
+        }
+
+        [Authorize(Policy = "Admin")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var tarea = await _context.Tareas
+                .Include(t => t.CourseOffering)
+                    .ThenInclude(co => co.Course)
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsSoftDeleted);
+
+            if (tarea == null)
+            {
+                return NotFound();
+            }
+
+            return View(tarea);
+        }
+
+        [HttpPost]
+        [Authorize(Policy = "Admin")]
+        public async Task<IActionResult> DeleteConfirmed(Guid id)
+        {
+            var tarea = await _context.Tareas.FindAsync(id);
+            if (tarea != null)
+            {
+                tarea.IsSoftDeleted = true;
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Tarea eliminada correctamente";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [Authorize(Policy = "Estudiante")]
+        public async Task<IActionResult> TareasEstudiantes()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userId, out var studentId))
+            {
+                return RedirectToAction("Login", "Home");
+            }
+
+            var enrolledCourses = await _context.Enrollments
+                .Where(e => e.StudentId == studentId && !e.IsSoftDeleted)
+                .Select(e => e.CourseOfferingId)
+                .ToListAsync();
+
+            var tareasConSubmissions = await _context.Tareas
+                .Where(t => enrolledCourses.Contains(t.CourseOfferingId) && !t.IsSoftDeleted)
+                .Include(t => t.CourseOffering)
+                    .ThenInclude(co => co.Course)
+                .Select(t => new
+                {
+                    Tarea = t,
+                    Submission = _context.Submissions
+                        .FirstOrDefault(s => s.TaskId == t.Id && s.StudentId == studentId)
+                })
+                .ToListAsync();
+
+            return View(tareasConSubmissions);
         }
     }
 }

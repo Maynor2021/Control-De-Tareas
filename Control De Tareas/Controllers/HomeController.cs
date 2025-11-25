@@ -38,14 +38,15 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: Login
-
-
-  
-        
-
-        // Register
-        public IActionResult Register()
+        [HttpGet]
+        public IActionResult Login()
         {
+            // HttpContext.Session.Clear();  como evito entrar por URl aqui ya probe borrar las variables de sesion desde aqui pero sigue igual m, aunqye ya no me muesta infor , preguntar al ing
+
+            if (User.Identity?.IsAuthenticated == true) 
+            {
+                return RedirectToAction("Index");
+            }
             return View();
         }
 

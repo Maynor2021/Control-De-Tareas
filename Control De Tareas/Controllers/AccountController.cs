@@ -2,16 +2,14 @@ using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
 using Mapster;
-using Mapster.EFCore;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using System.Reflection.Metadata.Ecma335;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json.Serialization;
 
 namespace Control_De_Tareas.Controllers
 {
@@ -25,32 +23,16 @@ namespace Control_De_Tareas.Controllers
             _context = context;
             _logger = logger;
         }
-        
-        /// <summary>
-        /// Mostrar formulario de registro
-        /// </summary>
-        [HttpGet]
-        public IActionResult Register()
-        {
-            // Si ya está autenticado, redirigir al home
-            if (User.Identity.IsAuthenticated)
-            {
-                return RedirectToAction("Index", "Home");
-            }
-            return View();
-        }
 
-        /// <summary>
-        /// Mostrar formulario de login (GET)
-        /// </summary>
         [HttpGet]
         public IActionResult Login()
         {
-            // Si ya tiene sesión activa, redirigir al home
-            if (!string.IsNullOrEmpty(HttpContext.Session.GetString("UserSession")))
-            {
-                return RedirectToAction("Index", "Home");
-            }
+            return View();
+        }
+
+        [HttpGet]
+        public IActionResult Register()
+        {
             return View();
         }
 
@@ -63,101 +45,102 @@ namespace Control_De_Tareas.Controllers
                 var sb = new StringBuilder();
 
                 for (int i = 0; i < stream.Length; i++)
-                    sb.AppendFormat("{0:x2}", stream[i]); // ✅ Minúsculas para coincidir con la BD
+                    sb.AppendFormat("{0:X2}", stream[i]);
 
                 return sb.ToString();
             }
         }
 
-        /// <summary>
-        /// Procesar login (POST)
-        /// </summary>
         [HttpPost]
-        public IActionResult Login(UserVm usersV)
+        public async Task<IActionResult> Login(UserVm usersV)
         {
-            try
+            var user = _context.Users
+                .Include(u => u.Rol)
+                .Where(u => u.Email == usersV.Email && u.IsSoftDeleted == false)
+                .FirstOrDefault();
+
+            if (user == null)
             {
-                // Validar que los datos no vengan vacíos
-                if (string.IsNullOrEmpty(usersV?.Email) || string.IsNullOrEmpty(usersV?.PasswordHash))
-                {
-                    ViewBag.Error = "Email y contraseña son requeridos";
-                    return View(new UserVm());
-                }
+                ViewBag.Error = "Usuario o contraseña incorrectos";
+                return View(new UserVm());
+            }
 
-                var user = _context.Users
-                    .Where(u => u.Email == usersV.Email && u.IsSoftDeleted == false)
-                    .ProjectToType<UserVm>()
-                    .FirstOrDefault();
+            usersV.PasswordHash = GetMD5(usersV.PasswordHash);
 
-                if (user == null)
-                {
-                    ViewBag.Error = "Usuario o contraseña incorrectos";
-                    return View(new UserVm());
-                }
+            if (user.PasswordHash != usersV.PasswordHash)
+            {
+                ViewBag.Error = "Usuario o contraseña incorrectos";
+                return View(new UserVm());
+            }
 
-          
-                string passwordHashIngresado = GetMD5(usersV.PasswordHash);
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                new Claim(ClaimTypes.Name, user.UserName),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Rol.RoleName)
+            };
 
-                
-                if (!string.Equals(user.PasswordHash, passwordHashIngresado, StringComparison.OrdinalIgnoreCase))
-                {
-                    ViewBag.Error = "Usuario o contraseña incorrectos";
-                    return View(new UserVm());
-                }
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
-                // Obtener los módulos del rol del usuario
-                var modulosRoles = _context.RoleModules
-                    .Where(rm => rm.IsSoftDeleted == false && rm.RoleId == user.Rol.RoleId)
-                    .ProjectToType<RolModuloVM>()
-                    .ToList();
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity));
 
-                var AgrupadosID = modulosRoles
-                    .Select(mr => mr.Modulo.ModuloAgrupadoId)
+            var modulosRoles = _context.RoleModules
+                .Where(rm => rm.IsSoftDeleted == false && rm.RoleId == user.Rol.RoleId)
+                .ProjectToType<RolModuloVM>()
+                .ToList();
+
+            var AgrupadosID = modulosRoles
+                .Select(mr => mr.Modulo.ModuloAgrupadoId)
+                .Distinct()
+                .ToList();
+
+            var agrupados = _context.ModuleGroup
+                .Where(ma => ma.IsSoftDeleted == false && AgrupadosID.Contains(ma.GroupModuleId))
+                .ProjectToType<ModuleGroupVm>()
+                .ToList();
+
+            foreach (var Item in agrupados)
+            {
+                var modulosActuales = modulosRoles
+                    .Where(mr => mr.Modulo.ModuloAgrupadoId == Item.GroupModuleId)
+                    .Select(s => s.Modulo.ModuleId)
                     .Distinct()
                     .ToList();
 
-                var agrupados = _context.ModuleGroup
-                    .Where(ma => ma.IsSoftDeleted == false && AgrupadosID.Contains(ma.GroupModuleId))
-                    .ProjectToType<ModuleGroupVm>()
+                Item.Modulos = Item.Modulos
+                    .Where(m => modulosActuales.Contains(m.ModuleId))
                     .ToList();
-
-                foreach (var Item in agrupados)
-                {
-                    var modulosActuales = modulosRoles
-                        .Where(mr => mr.Modulo.ModuloAgrupadoId == Item.GroupModuleId)
-                        .Select(s => s.Modulo.ModuleId)
-                        .Distinct()
-                        .ToList();
-
-                    Item.Modulos = Item.Modulos
-                        .Where(m => modulosActuales.Contains(m.ModuleId))
-                        .ToList();
-                }
-
-                user.menu = agrupados;
-                user.PasswordHash = string.Empty;
-
-                var sesionJson = JsonConvert.SerializeObject(user);
-                var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(sesionJson);
-                var sesionBase64 = System.Convert.ToBase64String(plainTextBytes);
-
-                HttpContext.Session.SetString("UserSession", sesionBase64);
-
-                return RedirectToAction("Index", "Home");
             }
-            catch (Exception ex)
+
+            var userVm = new UserVm
             {
-                _logger.LogError(ex, "[LOGIN] Error durante el proceso de login");
-                ViewBag.Error = "Error al iniciar sesión. Intenta nuevamente.";
-                return View(new UserVm());
-            }
+                UserId = user.UserId,
+                Nombre = user.UserName,
+                Email = user.Email,
+                Rol = new RolVm
+                {
+                    RoleId = user.Rol.RoleId,
+                    Descripcion = user.Rol.RoleName,
+                    Nombre = user.Rol.RoleName
+                },
+                menu = agrupados
+            };
+
+            var sesionJson = JsonConvert.SerializeObject(userVm);
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(sesionJson);
+            var sesionBase64 = System.Convert.ToBase64String(plainTextBytes);
+
+            HttpContext.Session.SetString("UserSession", sesionBase64);
+
+            return RedirectToAction("Index", "Home");
         }
 
-        /// <summary>
-        /// Cerrar sesión
-        /// </summary>
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             HttpContext.Session.Clear();
             return RedirectToAction("Login", "Account");
         }

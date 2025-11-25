@@ -41,7 +41,7 @@ namespace Control_De_Tareas.Controllers
 
             var offerings = await query
           .OrderByDescending(co => co.Period.StartDate)
-          .ThenBy(co => co.Course != null ? co.Course.Title : "") // ✅ FIX
+          .ThenBy(co => co.Course != null ? co.Course.Title : "")
           .ToListAsync(); 
 
 

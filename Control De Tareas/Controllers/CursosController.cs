@@ -1,5 +1,4 @@
-using Control_De_Tareas.Authorization;
-using Control_De_Tareas.Data;
+﻿using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Control_De_Tareas.Controllers
 {
-    [ProfesorOAdminAuthorize] // Solo profesores y admin
     public class CursosController : Controller
     {
         private ContextDB _context;
@@ -19,14 +17,61 @@ namespace Control_De_Tareas.Controllers
             _logger = logger;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            
-            var viewModel = new CursosVm();
+            var cursos = await _context.Courses
+                .Where(c => !c.IsSoftDeleted)
+                .Select(c => new CursoDto
+                {
+                    Id = c.Id,
+                    Codigo = c.Code,
+                    Nombre = c.Title,
+                    Descripcion = c.Description ?? "",
+                    Estado = c.IsActive ? "Activo" : "Inactivo",
+                    InstructorNombre = "Por asignar",
+                    CantidadEstudiantes = 0
+                })
+                .ToListAsync();
 
-           
+            var viewModel = new CursosVm
+            {
+                Cursos = cursos
+            };
 
             return View(viewModel);
+        }
+
+        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrador,Profesor")]
+        public IActionResult Crear()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrador,Profesor")]
+        public async Task<IActionResult> Crear(string Codigo, string Nombre, string Descripcion)
+        {
+            if (string.IsNullOrEmpty(Codigo) || string.IsNullOrEmpty(Nombre))
+            {
+                TempData["Error"] = "Código y Nombre son requeridos";
+                return View();
+            }
+
+            var curso = new Courses
+            {
+                Code = Codigo,
+                Title = Nombre,
+                Description = Descripcion,
+                CreatedAt = DateTime.Now,
+                IsActive = true,
+                IsSoftDeleted = false
+            };
+
+            _context.Courses.Add(curso);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Curso creado exitosamente";
+            return RedirectToAction(nameof(Index));
         }
     }
 }
