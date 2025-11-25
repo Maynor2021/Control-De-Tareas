@@ -23,17 +23,6 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(t => t.MaxScore)
                    .IsRequired()
                    .HasPrecision(18, 2);
-
-
-            builder.HasOne(t => t.CourseOffering)
-                   .WithMany()
-                   .HasForeignKey(t => t.CourseOfferingId)
-                   .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(t => t.CreatedByUser)
-                   .WithMany()
-                   .HasForeignKey(t => t.CreatedBy)
-                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 
@@ -74,7 +63,6 @@ namespace Control_De_Tareas.Data.Configurations
         {
             builder.HasKey(r => r.RoleId);
 
-            // PROPIEDADES
             builder.Property(r => r.RoleName)
                    .IsRequired()
                    .HasMaxLength(50);
@@ -87,7 +75,6 @@ namespace Control_De_Tareas.Data.Configurations
                    .IsRequired()
                    .HasDefaultValueSql("GETDATE()");
 
-            // RELACIONES
             builder.HasMany(r => r.RoleModules)
                    .WithOne(rm => rm.Role)
                    .HasForeignKey(rm => rm.RoleId);
@@ -134,7 +121,6 @@ namespace Control_De_Tareas.Data.Configurations
                    .HasForeignKey(ur => ur.UserId)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            // Relación con Rol
             builder.HasOne(u => u.Rol)
                    .WithMany(r => r.Users)
                    .HasForeignKey(u => u.RolId)
@@ -269,7 +255,6 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(a => a.IsSoftDeleted)
                    .HasDefaultValue(false);
 
-            // Configurar la relación con Users
             builder.HasOne(a => a.User)
                    .WithMany()
                    .HasForeignKey(a => a.UserId)
@@ -286,10 +271,9 @@ namespace Control_De_Tareas.Data.Configurations
         {
             builder.HasKey(g => g.Id);
 
-            // Configurar el tipo decimal con precisión
             builder.Property(g => g.Score)
                    .IsRequired()
-                   .HasPrecision(18, 2); // Cambiado a (18,2) para mayor rango
+                   .HasPrecision(18, 2);
 
             builder.Property(g => g.Feedback)
                    .HasMaxLength(2000);
@@ -301,13 +285,11 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(g => g.IsSoftDeleted)
                    .HasDefaultValue(false);
 
-            // Configurar la relación con Submissions
             builder.HasOne(g => g.Submission)
                    .WithMany(s => s.Grades)
                    .HasForeignKey(g => g.SubmissionId)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            // Configurar la relación con Users (Grader)
             builder.HasOne(g => g.Grader)
                    .WithMany()
                    .HasForeignKey(g => g.GraderId)
@@ -338,7 +320,6 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(sf => sf.IsSoftDeleted)
                    .HasDefaultValue(false);
 
-            // Configurar la relación con Submissions
             builder.HasOne(sf => sf.Submission)
                    .WithMany(s => s.SubmissionFiles)
                    .HasForeignKey(sf => sf.SubmissionId)
@@ -371,13 +352,11 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(a => a.IsSoftDeleted)
                    .HasDefaultValue(false);
 
-            // Configurar relación con CourseOfferings
             builder.HasOne(a => a.CourseOffering)
                    .WithMany(co => co.Announcements)
                    .HasForeignKey(a => a.CourseOfferingId)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            // Configurar relación con Users (PostedByUser)
             builder.HasOne(a => a.PostedByUser)
                    .WithMany()
                    .HasForeignKey(a => a.PostedBy)
@@ -408,19 +387,16 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(co => co.IsSoftDeleted)
                    .HasDefaultValue(false);
 
-            // Configurar relación con Courses
             builder.HasOne(co => co.Course)
                    .WithMany()
                    .HasForeignKey(co => co.CourseId)
                    .OnDelete(DeleteBehavior.Restrict);
 
-            // Configurar relación con Users (Professor) - NO CASCADE
             builder.HasOne(co => co.Professor)
                    .WithMany()
                    .HasForeignKey(co => co.ProfessorId)
                    .OnDelete(DeleteBehavior.Restrict);
 
-            // Configurar relación con Periods
             builder.HasOne(co => co.Period)
                    .WithMany(p => p.CourseOfferings)
                    .HasForeignKey(co => co.PeriodId)
@@ -450,13 +426,11 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(e => e.IsSoftDeleted)
                    .HasDefaultValue(false);
 
-            // Configurar relación con CourseOfferings
             builder.HasOne(e => e.CourseOffering)
                    .WithMany(co => co.Enrollments)
                    .HasForeignKey(e => e.CourseOfferingId)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            // Configurar relación con Users (Student) - NO CASCADE
             builder.HasOne(e => e.Student)
                    .WithMany()
                    .HasForeignKey(e => e.StudentId)
@@ -465,7 +439,7 @@ namespace Control_De_Tareas.Data.Configurations
             builder.HasIndex(e => e.CourseOfferingId);
             builder.HasIndex(e => e.StudentId);
             builder.HasIndex(e => new { e.CourseOfferingId, e.StudentId })
-                   .IsUnique(); // Un estudiante solo puede inscribirse una vez por oferta
+                   .IsUnique();
         }
     }
 
