@@ -724,34 +724,55 @@ PRINT '- NUEVO: Profesores pueden ver "Mis Cursos" y "Gestión de Ofertas"';
 PRINT '- NUEVO: Administradores tienen acceso completo a CourseOfferings';
 
 -- =====================================================
--- CORRECCIÓN DE MÓDULOS: Definición Exacta
+-- MÓDULOS CORREGIDOS PARA COURSEOFFERINGS Y CURSOS
 -- =====================================================
 
--- 1. Limpieza preventiva (Borra si existen para reinsertar limpio)
-DELETE FROM RoleModules WHERE ModuleId IN (SELECT ModuleId FROM Module WHERE Controller IN ('Cursos', 'CourseOfferings'));
-DELETE FROM Module WHERE Controller IN ('Cursos', 'CourseOfferings');
+-- Eliminar módulos existentes si es necesario
+DELETE FROM RoleModules WHERE ModuleId IN (SELECT ModuleId FROM Module WHERE Controller IN ('CourseOfferings', 'Cursos'));
+DELETE FROM Module WHERE Controller IN ('CourseOfferings', 'Cursos');
 
--- 2. Inserción de los 3 Módulos Específicos
+-- Insertar módulos CORREGIDOS
 INSERT INTO Module (ModuleId, Nombre, Controller, Metodo, CreateAt, CreateDate, CreatBy, ModifieBy, IsSoftDeleted, ModuloAgrupadoId) VALUES
+-- Módulos de CourseOfferings
+(NEWID(), 'Gestión de Ofertas', 'CourseOfferings', 'Index', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGCursosId),
+(NEWID(), 'Mis Cursos', 'CourseOfferings', 'MisCursos', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGCursosId),
+(NEWID(), 'Inscripciones', 'CourseOfferings', 'Inscripciones', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGMatriculasId),
 
--- A. "Mis Cursos" -> Apunta a Cursos/Index
-(NEWID(), 'Mis Cursos', 'Cursos', 'Index', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGCursosId),
+-- Módulo de Cursos base
+(NEWID(), 'Cursos Base', 'Cursos', 'Index', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGCursosId);
 
--- B. "Gestión de Ofertas" -> Apunta a CourseOfferings/MisCursos
--- (Nota: El nombre del módulo es "Gestión", aunque la acción se llame MisCursos internamente)
-(NEWID(), 'Gestión de Ofertas', 'CourseOfferings', 'MisCursos', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGCursosId),
+PRINT '- Módulos CORREGIDOS insertados: 4';
 
--- C. "Inscripciones" -> Apunta a CourseOfferings/Inscripciones
-(NEWID(), 'Inscripciones', 'CourseOfferings', 'Inscripciones', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGMatriculasId);
-
-PRINT 'Módulos corregidos exitosamente.';
-
--- 3. Reasignación de Permisos (Ejemplo genérico para Admin/Profesor)
--- Ajusta los RoleId según tu lógica de negocio real
+-- Actualizar RoleModules con permisos CORREGIDOS
 INSERT INTO RoleModules (ModuleRoleId, Description, CreateAt, CreateDate, CreatBy, ModifieBy, IsSoftDeleted, ModuleId, RoleId)
-SELECT 
-    NEWID(), 'Acceso a ' + m.Nombre, GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, m.ModuleId, r.RoleId
+SELECT 
+    NEWID(),
+    'Permiso para ' + m.Nombre,
+    GETDATE(),
+    GETDATE(),
+    @AdminUserId,
+    @AdminUserId,
+    0,
+    m.ModuleId,
+    r.RoleId
 FROM Module m
 CROSS JOIN Roles r
-WHERE m.Controller IN ('Cursos', 'CourseOfferings')
-AND r.RoleId = @AdminRoleId; -- Dando acceso al Admin a los 3 nuevos módulos
+WHERE m.Controller IN ('CourseOfferings', 'Cursos')
+AND (
+    -- ADMIN: Todos los módulos
+    (r.RoleId = @AdminRoleId)
+    OR
+    -- PROFESOR: Mis Cursos, Inscripciones y Cursos Base
+    (r.RoleId = @ProfesorRoleId AND (
+        (m.Controller = 'CourseOfferings' AND m.Metodo IN ('MisCursos')) OR
+        (m.Controller = 'Cursos' AND m.Metodo = 'Index')
+    ))
+    OR
+    -- ESTUDIANTE: Solo Mis Cursos
+    (r.RoleId = @EstudianteRoleId AND (
+        m.Controller = 'CourseOfferings' AND m.Metodo = 'MisCursos' OR
+        (m.Controller = 'Cursos' AND m.Metodo = 'Index')
+    ))
+);
+
+PRINT '- RoleModules CORREGIDOS insertados: ' + CAST(@@ROWCOUNT AS VARCHAR);

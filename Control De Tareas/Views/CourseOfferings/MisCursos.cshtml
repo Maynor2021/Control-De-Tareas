@@ -5,7 +5,6 @@
 }
 
 <div class="container-fluid">
-    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 text-primary">
             <i class="bi bi-journal-bookmark"></i>
@@ -13,13 +12,12 @@
         </h1>
         @if (userRole == "Administrador")
         {
-            <a href="@Url.Action("Index", "CourseOfferings")" class="btn btn-outline-primary">
+            <a href="@Url.Action("ListadoOfertas", "CourseOfferings")" class="btn btn-outline-primary">
                 <i class="bi bi-gear"></i> Gestionar Todas las Ofertas
             </a>
         }
     </div>
 
-    <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-body">
             <div class="row g-3">
@@ -45,7 +43,6 @@
         </div>
     </div>
 
-    <!-- Grid de Cursos -->
     <div class="row" id="cursosGrid">
         @foreach (var curso in Model)
         {
@@ -89,7 +86,6 @@
                             @curso.PeriodStartDate?.ToString("dd/MM/yyyy") - @curso.PeriodEndDate?.ToString("dd/MM/yyyy")
                         </p>
 
-                        <!-- Progress Bar -->
                         @if (curso.PeriodStartDate.HasValue && curso.PeriodEndDate.HasValue)
                         {
                             var progress = CalculateProgress(curso.PeriodStartDate.Value, curso.PeriodEndDate.Value);
@@ -143,12 +139,11 @@
 
                             @if (userRole == "Profesor" || userRole == "Administrador")
                             {
-                                <a href="@Url.Action("Inscripciones", "CourseOfferings", new { id = curso.Id })"
+                                <a href="@Url.Action("Index", "CourseOfferings", new { id = curso.Id })"
                                    class="btn btn-outline-info btn-sm">
                                     <i class="bi bi-people"></i> Gestionar Inscripciones
                                 </a>
 
-                                <!-- Botón para activar/desactivar oferta -->
                                 <form method="post" action="@Url.Action("ToggleStatus", "CourseOfferings")" class="d-grid">
                                     <input type="hidden" name="id" value="@curso.Id" />
                                     @Html.AntiForgeryToken()
@@ -165,7 +160,6 @@
         }
     </div>
 
-    <!-- Empty State -->
     @if (!Model.Any())
     {
         <div class="text-center py-5">
@@ -176,7 +170,7 @@
             </p>
             @if (userRole == "Administrador")
             {
-                <a href="@Url.Action("Index", "CourseOfferings")" class="btn btn-primary mt-3">
+                <a href="@Url.Action("Create", "CourseOfferings")" class="btn btn-primary mt-3">
                     <i class="bi bi-plus-circle"></i> Crear Nueva Oferta
                 </a>
             }
@@ -214,7 +208,6 @@
 
         function matricularCurso(cursoId) {
             if (confirm('¿Estás seguro de que deseas matricularte en este curso?')) {
-                // Crear form data
                 const formData = new FormData();
                 formData.append('courseOfferingId', cursoId);
 
@@ -275,7 +268,6 @@
 
         if (daysPassed <= 0) return 0;
         if (daysPassed >= totalDays) return 100;
-
         return (int)((daysPassed / totalDays) * 100);
     }
 }
