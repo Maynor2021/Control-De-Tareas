@@ -21,6 +21,7 @@ namespace Control_De_Tareas.Controllers
 
         public IActionResult Index()
         {
+            
             var viewModel = new CursosVm();
 
            
