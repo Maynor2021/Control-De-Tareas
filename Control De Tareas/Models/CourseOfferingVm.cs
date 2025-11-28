@@ -3,14 +3,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Control_De_Tareas.Models
 {
-   
+
     public class CourseOfferingVm : IValidatableObject
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
 
         [Required(ErrorMessage = "Debe seleccionar un curso")]
         [Display(Name = "Curso")]
-        public int CourseId { get; set; }
+        public Guid CourseId { get; set; } // CAMBIADO de int a Guid
 
         [Required(ErrorMessage = "Debe asignar un profesor")]
         [Display(Name = "Profesor")]
@@ -18,7 +18,7 @@ namespace Control_De_Tareas.Models
 
         [Required(ErrorMessage = "Debe seleccionar un período")]
         [Display(Name = "Período Académico")]
-        public int PeriodId { get; set; }
+        public Guid PeriodId { get; set; } // CAMBIADO de int a Guid
 
         [StringLength(50, ErrorMessage = "La sección no puede exceder 50 caracteres")]
         [Display(Name = "Sección")]
@@ -134,7 +134,7 @@ namespace Control_De_Tareas.Models
             }
         }
 
-       
+
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             var errors = new List<ValidationResult>();

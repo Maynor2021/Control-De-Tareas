@@ -5,8 +5,8 @@ namespace Control_De_Tareas.Data.Entitys
     [Table("Announcements")]
     public class Announcements
     {
-        public int Id { get; set; }
-        public int CourseOfferingId { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
+        public Guid CourseOfferingId { get; set; } // CAMBIADO de int a Guid
         public string Title { get; set; } = string.Empty;
         public string? Body { get; set; }
         public DateTime PostedAt { get; set; } = DateTime.Now;

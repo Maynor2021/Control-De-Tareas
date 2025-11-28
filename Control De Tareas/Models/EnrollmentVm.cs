@@ -8,11 +8,11 @@ namespace Control_De_Tareas.Models
     /// </summary>
     public class EnrollmentVm
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
 
         [Required(ErrorMessage = "Debe seleccionar una oferta de curso")]
         [Display(Name = "Oferta de Curso")]
-        public int CourseOfferingId { get; set; }
+        public Guid CourseOfferingId { get; set; } // CAMBIADO de int a Guid
 
         [Required(ErrorMessage = "Debe seleccionar un estudiante")]
         [Display(Name = "Estudiante")]

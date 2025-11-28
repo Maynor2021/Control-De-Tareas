@@ -11,12 +11,12 @@ namespace Control_De_Tareas.Data.Entitys
         /// <summary>
         /// Identificador único de la inscripción.
         /// </summary>
-        public int Id { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
 
         /// <summary>
         /// Identificador de la oferta de curso en la que el estudiante está matriculado.
         /// </summary>
-        public int CourseOfferingId { get; set; }
+        public Guid CourseOfferingId { get; set; } // CAMBIADO de int a Guid
 
         /// <summary>
         /// Identificador del estudiante inscrito en la oferta de curso.

@@ -2,11 +2,9 @@
 
 namespace Control_De_Tareas.Models
 {
- 
-    public class PeriodModel
+    public class PeriodVm
     {
- 
-        public int Id { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
 
         [Required(ErrorMessage = "El nombre del período es requerido")]
         [StringLength(100, MinimumLength = 3, ErrorMessage = "El nombre debe tener entre 3 y 100 caracteres")]
@@ -18,7 +16,6 @@ namespace Control_De_Tareas.Models
         [DataType(DataType.Date)]
         public DateTime StartDate { get; set; }
 
-    
         [Required(ErrorMessage = "La fecha de fin es requerida")]
         [Display(Name = "Fecha de Fin")]
         [DataType(DataType.Date)]
@@ -27,7 +24,6 @@ namespace Control_De_Tareas.Models
         [Display(Name = "¿Está Activo?")]
         public bool IsActive { get; set; } = true;
 
-
         [Display(Name = "Fecha de Creación")]
         [DataType(DataType.DateTime)]
         public DateTime CreatedAt { get; set; } = DateTime.Now;
@@ -35,7 +31,6 @@ namespace Control_De_Tareas.Models
         [Display(Name = "Cursos Ofertados")]
         public int CourseOfferingsCount { get; set; }
 
- 
         [Display(Name = "Estado")]
         public string Status
         {
@@ -51,7 +46,6 @@ namespace Control_De_Tareas.Models
             }
         }
 
-
         [Display(Name = "Duración (días)")]
         public int DurationInDays
         {
@@ -60,7 +54,6 @@ namespace Control_De_Tareas.Models
                 return (EndDate - StartDate).Days;
             }
         }
-
 
         public bool CanBeEdited
         {

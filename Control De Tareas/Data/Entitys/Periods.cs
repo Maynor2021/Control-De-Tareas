@@ -13,7 +13,7 @@ namespace Control_De_Tareas.Data.Entitys
         /// <summary>
         /// Identificador único del periodo académico.
         /// </summary>
-        public int Id { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
 
         /// <summary>
         /// Nombre del periodo académico (Ej: "2025 - I", "Segundo Semestre 2024").

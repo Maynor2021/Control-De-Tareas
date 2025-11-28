@@ -6,7 +6,7 @@ namespace Control_De_Tareas.Data.Entitys
     public class Tareas
     {
         public Guid Id { get; set; }
-        public int CourseOfferingId { get; set; }
+        public Guid CourseOfferingId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public DateTime DueDate { get; set; }

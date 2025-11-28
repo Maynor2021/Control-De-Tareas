@@ -2,7 +2,7 @@
 {
     public class CursoInscritoVm
     {
-        public int CourseOfferingId { get; set; }
+        public Guid CourseOfferingId { get; set; } // CAMBIADO de int a Guid
         public string Curso { get; set; }
         public string Seccion { get; set; }
         public string Profesor { get; set; }

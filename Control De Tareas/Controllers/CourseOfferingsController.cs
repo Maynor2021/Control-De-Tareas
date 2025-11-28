@@ -21,8 +21,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: CourseOfferings/ListadoOfertas
-        // (Antiguo Index: Lista todas las ofertas para administradores)
-        public async Task<IActionResult> ListadoOfertas(int? periodId)
+        public async Task<IActionResult> ListadoOfertas(Guid? periodId) // CAMBIADO de int? a Guid?
         {
             var query = _context.CourseOfferings
                 .Where(co => !co.IsSoftDeleted)
@@ -81,12 +80,11 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: CourseOfferings/Index/5
-        // (AHORA ESTE ES EL GESTOR DE INSCRIPCIONES)
-        public async Task<IActionResult> Index(int? id)
+        public async Task<IActionResult> Index(Guid? id) // CAMBIADO de int? a Guid?
         {
             if (id == null)
             {
-                return RedirectToAction(nameof(MisCursos)); // O ListadoOfertas
+                return RedirectToAction(nameof(MisCursos));
             }
 
             var offering = await _context.CourseOfferings
@@ -113,12 +111,13 @@ namespace Control_De_Tareas.Controllers
                 EnrolledStudentsCount = offering.Enrollments.Count(e => !e.IsSoftDeleted)
             };
 
-            // Lógica de Inscripciones movida aquí
+            // En el método Index del CourseOfferingsController:
             ViewBag.EnrolledStudents = offering.Enrollments
                 .Where(e => !e.IsSoftDeleted)
                 .Select(e => new EnrollmentVm
                 {
-                    Id = e.Id,
+                    Id = e.Id, // ← Ya usa Guid
+                    CourseOfferingId = e.CourseOfferingId, // ← Ya usa Guid
                     StudentId = e.StudentId,
                     StudentName = e.Student.UserName,
                     StudentEmail = e.Student.Email,
@@ -157,8 +156,6 @@ namespace Control_De_Tareas.Controllers
         public async Task<IActionResult> MisCursos()
         {
             var userSession = HttpContext.Session.GetString("UserSession");
-            // Nota: Con el cambio de Program.cs, idealmente usarías User.Identity en lugar de Session
-            // pero mantengo tu lógica actual para no romper nada extra.
             if (string.IsNullOrEmpty(userSession))
             {
                 return RedirectToAction("Login", "Account");
@@ -229,7 +226,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: CourseOfferings/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(Guid? id) // CAMBIADO de int? a Guid?
         {
             if (id == null) return NotFound();
 
@@ -301,6 +298,7 @@ namespace Control_De_Tareas.Controllers
 
             var offering = new CourseOfferings
             {
+                Id = Guid.NewGuid(), // AGREGAR ESTA LÍNEA
                 CourseId = model.CourseId,
                 ProfessorId = model.ProfessorId,
                 PeriodId = model.PeriodId,
@@ -314,12 +312,11 @@ namespace Control_De_Tareas.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Oferta de curso creada exitosamente";
-            // Redirige a ListadoOfertas en lugar de Index, porque Index ahora requiere ID
             return RedirectToAction(nameof(ListadoOfertas));
         }
 
         // GET: CourseOfferings/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(Guid? id) // CAMBIADO de int? a Guid?
         {
             if (id == null) return NotFound();
 
@@ -346,7 +343,7 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, CourseOfferingVm model)
+        public async Task<IActionResult> Edit(Guid id, CourseOfferingVm model) // CAMBIADO de int a Guid
         {
             if (id != model.Id) return NotFound();
 
@@ -384,12 +381,11 @@ namespace Control_De_Tareas.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Oferta actualizada exitosamente";
-            // Redirige a ListadoOfertas para volver a la lista general
             return RedirectToAction(nameof(ListadoOfertas));
         }
 
         // GET: CourseOfferings/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(Guid? id) // CAMBIADO de int? a Guid?
         {
             if (id == null) return NotFound();
 
@@ -418,7 +414,7 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(Guid id) // CAMBIADO de int a Guid
         {
             var offering = await _context.CourseOfferings
                 .Include(co => co.Enrollments)
@@ -444,7 +440,7 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/InscribirEstudiante
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> InscribirEstudiante(int courseOfferingId, Guid studentId)
+        public async Task<IActionResult> InscribirEstudiante(Guid courseOfferingId, Guid studentId) // CAMBIADO de int a Guid
         {
             try
             {
@@ -456,12 +452,12 @@ namespace Control_De_Tareas.Controllers
                 if (existingEnrollment != null)
                 {
                     TempData["Error"] = "El estudiante ya está inscrito en este curso.";
-                    // REDIRIGIR A INDEX CON ID
                     return RedirectToAction(nameof(Index), new { id = courseOfferingId });
                 }
 
                 var enrollment = new Enrollments
                 {
+                    Id = Guid.NewGuid(), // AGREGAR ESTA LÍNEA
                     CourseOfferingId = courseOfferingId,
                     StudentId = studentId,
                     EnrolledAt = DateTime.Now,
@@ -486,7 +482,7 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/DesinscribirEstudiante
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DesinscribirEstudiante(int courseOfferingId, Guid studentId)
+        public async Task<IActionResult> DesinscribirEstudiante(Guid courseOfferingId, Guid studentId) // CAMBIADO de int a Guid
         {
             try
             {
@@ -520,7 +516,7 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/MatricularEstudiante (Este es el que usa MisCursos)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MatricularEstudiante(int courseOfferingId)
+        public async Task<IActionResult> MatricularEstudiante(Guid courseOfferingId) // CAMBIADO de int a Guid
         {
             try
             {
@@ -535,7 +531,6 @@ namespace Control_De_Tareas.Controllers
 
                 string userRole = "Estudiante";
                 // ... (Lógica de rol abreviada para claridad, se mantiene igual) ...
-                // En producción usa User.IsInRole si arreglaste el Auth
 
                 var existingEnrollment = await _context.Enrollments
                     .FirstOrDefaultAsync(e => e.CourseOfferingId == courseOfferingId &&
@@ -563,6 +558,7 @@ namespace Control_De_Tareas.Controllers
 
                 var enrollment = new Enrollments
                 {
+                    Id = Guid.NewGuid(), // AGREGAR ESTA LÍNEA
                     CourseOfferingId = courseOfferingId,
                     StudentId = user.UserId,
                     EnrolledAt = DateTime.Now,
@@ -585,7 +581,7 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/ToggleStatus/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ToggleStatus(int id)
+        public async Task<IActionResult> ToggleStatus(Guid id) // CAMBIADO de int a Guid
         {
             var offering = await _context.CourseOfferings
                 .FirstOrDefaultAsync(co => co.Id == id && !co.IsSoftDeleted);
@@ -597,7 +593,6 @@ namespace Control_De_Tareas.Controllers
 
             var status = offering.IsActive ? "activada" : "desactivada";
             TempData["Success"] = $"Oferta {status} exitosamente";
-            // Redirige a MisCursos si fue llamado desde ahí, o ListadoOfertas
             return RedirectToAction(nameof(MisCursos));
         }
 

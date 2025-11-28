@@ -37,19 +37,16 @@ namespace Control_De_Tareas.Controllers
 
             try
             {
-                // Validar el archivo
                 if (!_fileStorageService.ValidateFile(model.File, out string errorMessage))
                 {
                     ModelState.AddModelError("File", errorMessage);
                     return View(model);
                 }
 
-                // Generar nombre único
                 string extension = System.IO.Path.GetExtension(model.File.FileName);
                 long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 string uniqueFileName = $"{timestamp}_{Guid.NewGuid()}{extension}";
 
-                // Guardar el archivo físicamente
                 string filePath = await _fileStorageService.SaveFileAsync(
                     model.File,
                     model.CourseOfferingId,
@@ -72,14 +69,13 @@ namespace Control_De_Tareas.Controllers
 
         // GET: FileUpload/List
         [HttpGet]
-        public IActionResult List(int? courseOfferingId, int? taskId)
+        public IActionResult List(Guid? courseOfferingId, Guid? taskId) // CAMBIADO de int? a Guid?
         {
             var uploadsPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "uploads"
             );
 
-            // Si no existe la carpeta, mostrar vista vacía
             if (!Directory.Exists(uploadsPath))
             {
                 ViewBag.Files = new List<FileInfoVm>();
@@ -90,7 +86,6 @@ namespace Control_De_Tareas.Controllers
 
             try
             {
-                // Si se especifican filtros por curso y tarea
                 if (courseOfferingId.HasValue && taskId.HasValue)
                 {
                     var specificPath = Path.Combine(
@@ -118,7 +113,6 @@ namespace Control_De_Tareas.Controllers
                 }
                 else
                 {
-                    // Listar todos los archivos
                     var rootDir = new DirectoryInfo(uploadsPath);
                     files = rootDir.GetFiles("*.*", SearchOption.AllDirectories)
                         .Select(f => new FileInfoVm
@@ -131,7 +125,7 @@ namespace Control_De_Tareas.Controllers
                             TaskId = ExtractTaskId(f.DirectoryName)
                         })
                         .OrderByDescending(f => f.UploadDate)
-                        .Take(50) // Limitar a 50 archivos más recientes
+                        .Take(50)
                         .ToList();
                 }
             }
@@ -147,7 +141,7 @@ namespace Control_De_Tareas.Controllers
 
         // GET: FileUpload/DownloadByName
         [HttpGet]
-        public IActionResult DownloadByName(string fileName, int? courseOfferingId, int? taskId)
+        public IActionResult DownloadByName(string fileName, Guid? courseOfferingId, Guid? taskId) // CAMBIADO de int? a Guid?
         {
             try
             {
@@ -163,7 +157,6 @@ namespace Control_De_Tareas.Controllers
                     return RedirectToAction(nameof(List));
                 }
 
-                // Construir la ruta del archivo
                 string uploadsPath = Path.Combine(
                     Directory.GetCurrentDirectory(),
                     "uploads",
@@ -172,20 +165,15 @@ namespace Control_De_Tareas.Controllers
                     fileName
                 );
 
-                // Verificar que el archivo existe
                 if (!System.IO.File.Exists(uploadsPath))
                 {
                     TempData["Error"] = "El archivo no existe o fue eliminado.";
                     return RedirectToAction(nameof(List));
                 }
 
-                // Leer el archivo
                 byte[] fileBytes = System.IO.File.ReadAllBytes(uploadsPath);
-
-                // Determinar el Content-Type
                 string contentType = GetContentType(Path.GetExtension(fileName));
 
-                // Retornar el archivo
                 return File(fileBytes, contentType, fileName);
             }
             catch (Exception ex)
@@ -195,7 +183,6 @@ namespace Control_De_Tareas.Controllers
             }
         }
 
-       
         private string FormatFileSize(long bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB" };
@@ -209,8 +196,7 @@ namespace Control_De_Tareas.Controllers
             return $"{len:0.##} {sizes[order]}";
         }
 
-   
-        private int? ExtractCourseOfferingId(string path)
+        private Guid? ExtractCourseOfferingId(string path) // CAMBIADO de int? a Guid?
         {
             try
             {
@@ -219,7 +205,7 @@ namespace Control_De_Tareas.Controllers
                 if (courseOffering != null)
                 {
                     var idString = courseOffering.Replace("courseOffering_", "");
-                    if (int.TryParse(idString, out int id))
+                    if (Guid.TryParse(idString, out Guid id)) // CAMBIADO de int a Guid
                         return id;
                 }
             }
@@ -227,7 +213,7 @@ namespace Control_De_Tareas.Controllers
             return null;
         }
 
-        private int? ExtractTaskId(string path)
+        private Guid? ExtractTaskId(string path) // CAMBIADO de int? a Guid?
         {
             try
             {
@@ -236,7 +222,7 @@ namespace Control_De_Tareas.Controllers
                 if (task != null)
                 {
                     var idString = task.Replace("task_", "");
-                    if (int.TryParse(idString, out int id))
+                    if (Guid.TryParse(idString, out Guid id)) // CAMBIADO de int a Guid
                         return id;
                 }
             }
@@ -244,7 +230,6 @@ namespace Control_De_Tareas.Controllers
             return null;
         }
 
-     
         private string GetContentType(string extension)
         {
             return extension.ToLower() switch
@@ -256,7 +241,7 @@ namespace Control_De_Tareas.Controllers
                 ".jpg" or ".jpeg" => "image/jpeg",
                 ".png" => "image/png",
                 ".gif" => "image/gif",
-                _ => "application/octet-stream" // Default para descarga directa
+                _ => "application/octet-stream"
             };
         }
     }
@@ -267,7 +252,7 @@ namespace Control_De_Tareas.Controllers
         public string FileSize { get; set; }
         public DateTime UploadDate { get; set; }
         public string FilePath { get; set; }
-        public int? CourseOfferingId { get; set; }
-        public int? TaskId { get; set; }
+        public Guid? CourseOfferingId { get; set; } // CAMBIADO de int? a Guid?
+        public Guid? TaskId { get; set; } // CAMBIADO de int? a Guid?
     }
 }

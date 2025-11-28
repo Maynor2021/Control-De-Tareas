@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Control_De_Tareas.Migrations
 {
     [DbContext(typeof(ContextDB))]
-    [Migration("20251125051232_NewCreate")]
-    partial class NewCreate
+    [Migration("20251128055638_inital")]
+    partial class inital
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -27,18 +27,16 @@ namespace Control_De_Tareas.Migrations
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Announcements", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Body")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<int>("CourseOfferingId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("CourseOfferingId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsSoftDeleted")
                         .ValueGeneratedOnAdd()
@@ -92,8 +90,8 @@ namespace Control_De_Tareas.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("EntityId")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("EntityId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsSoftDeleted")
                         .ValueGeneratedOnAdd()
@@ -114,14 +112,12 @@ namespace Control_De_Tareas.Migrations
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.CourseOfferings", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("uniqueidentifier");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -138,8 +134,8 @@ namespace Control_De_Tareas.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
-                    b.Property<int>("PeriodId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("PeriodId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("ProfessorId")
                         .HasColumnType("uniqueidentifier");
@@ -165,11 +161,9 @@ namespace Control_De_Tareas.Migrations
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Courses", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -202,19 +196,21 @@ namespace Control_De_Tareas.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[IsSoftDeleted] = 0");
+
                     b.ToTable("Courses", (string)null);
                 });
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Enrollments", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("uniqueidentifier");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseOfferingId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("CourseOfferingId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("EnrolledAt")
                         .ValueGeneratedOnAdd()
@@ -243,18 +239,17 @@ namespace Control_De_Tareas.Migrations
                     b.HasIndex("StudentId");
 
                     b.HasIndex("CourseOfferingId", "StudentId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[IsSoftDeleted] = 0");
 
                     b.ToTable("Enrollments");
                 });
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Grades", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Feedback")
                         .HasMaxLength(2000)
@@ -367,11 +362,9 @@ namespace Control_De_Tareas.Migrations
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.Periods", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -479,11 +472,9 @@ namespace Control_De_Tareas.Migrations
 
             modelBuilder.Entity("Control_De_Tareas.Data.Entitys.SubmissionFiles", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("FileName")
                         .HasMaxLength(255)
@@ -565,13 +556,10 @@ namespace Control_De_Tareas.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("CourseOfferingId")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("CreatedBy")
+                    b.Property<Guid>("CourseOfferingId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("CreatedByUserUserId")
+                    b.Property<Guid>("CreatedBy")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Description")
@@ -597,7 +585,7 @@ namespace Control_De_Tareas.Migrations
 
                     b.HasIndex("CourseOfferingId");
 
-                    b.HasIndex("CreatedByUserUserId");
+                    b.HasIndex("CreatedBy");
 
                     b.ToTable("Tasks");
                 });
@@ -678,7 +666,8 @@ namespace Control_De_Tareas.Migrations
                     b.HasKey("UserId");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[IsSoftDeleted] = 0");
 
                     b.HasIndex("RolId");
 
@@ -771,7 +760,7 @@ namespace Control_De_Tareas.Migrations
                     b.HasOne("Control_De_Tareas.Data.Entitys.Submissions", "Submission")
                         .WithMany("Grades")
                         .HasForeignKey("SubmissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Grader");
@@ -784,7 +773,7 @@ namespace Control_De_Tareas.Migrations
                     b.HasOne("Control_De_Tareas.Data.Entitys.ModuleGroup", "ModuloAgrupado")
                         .WithMany("Modules")
                         .HasForeignKey("ModuloAgrupadoId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ModuloAgrupado");
@@ -795,13 +784,13 @@ namespace Control_De_Tareas.Migrations
                     b.HasOne("Control_De_Tareas.Data.Entitys.Module", "Module")
                         .WithMany("RoleModules")
                         .HasForeignKey("ModuleId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Control_De_Tareas.Data.Entitys.Roles", "Role")
                         .WithMany("RoleModules")
                         .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Module");
@@ -814,7 +803,7 @@ namespace Control_De_Tareas.Migrations
                     b.HasOne("Control_De_Tareas.Data.Entitys.Submissions", "Submission")
                         .WithMany("SubmissionFiles")
                         .HasForeignKey("SubmissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Submission");
@@ -831,7 +820,7 @@ namespace Control_De_Tareas.Migrations
                     b.HasOne("Control_De_Tareas.Data.Entitys.Tareas", "Task")
                         .WithMany("Submissions")
                         .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Student");
@@ -849,8 +838,8 @@ namespace Control_De_Tareas.Migrations
 
                     b.HasOne("Control_De_Tareas.Data.Entitys.Users", "CreatedByUser")
                         .WithMany()
-                        .HasForeignKey("CreatedByUserUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("CourseOffering");

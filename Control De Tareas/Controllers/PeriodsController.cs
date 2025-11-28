@@ -17,9 +17,6 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: Periods
-        /// <summary>
-        /// Lista todos los períodos académicos.
-        /// </summary>
         public async Task<IActionResult> Index()
         {
             var periods = await _context.Periods
@@ -28,7 +25,7 @@ namespace Control_De_Tareas.Controllers
                 .OrderByDescending(p => p.StartDate)
                 .ToListAsync();
 
-            var models = periods.Select(p => new PeriodModel
+            var models = periods.Select(p => new PeriodVm
             {
                 Id = p.Id,
                 Name = p.Name,
@@ -43,10 +40,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: Periods/Details/5
-        /// <summary>
-        /// Muestra los detalles de un período específico.
-        /// </summary>
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(Guid? id)
         {
             if (id == null)
             {
@@ -65,7 +59,7 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
-            var model = new PeriodModel
+            var model = new PeriodVm
             {
                 Id = period.Id,
                 Name = period.Name,
@@ -80,34 +74,27 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: Periods/Create
-        /// <summary>
-        /// Muestra el formulario para crear un nuevo período.
-        /// </summary>
         public IActionResult Create()
         {
-            var model = new PeriodModel
+            var model = new PeriodVm
             {
                 StartDate = DateTime.Now.Date,
                 EndDate = DateTime.Now.AddMonths(6).Date,
-                IsActive = false // Por defecto inactivo hasta que se configure
+                IsActive = false
             };
             return View(model);
         }
 
         // POST: Periods/Create
-        /// <summary>
-        /// Procesa la creación de un nuevo período.
-        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(PeriodModel model)
+        public async Task<IActionResult> Create(PeriodVm model)
         {
             if (!ModelState.IsValid)
             {
                 return View(model);
             }
 
-            // Validación: Si se intenta activar, verificar que no haya otro período activo
             if (model.IsActive)
             {
                 var hasActivePeriod = await _context.Periods
@@ -121,7 +108,6 @@ namespace Control_De_Tareas.Controllers
                 }
             }
 
-            // Validación: Verificar que no haya solapamiento de fechas con otros períodos
             var hasOverlap = await _context.Periods
                 .AnyAsync(p => !p.IsSoftDeleted &&
                     ((model.StartDate >= p.StartDate && model.StartDate <= p.EndDate) ||
@@ -135,9 +121,9 @@ namespace Control_De_Tareas.Controllers
                 return View(model);
             }
 
-            // Crear la entidad
             var period = new Periods
             {
+                Id = Guid.NewGuid(),
                 Name = model.Name,
                 StartDate = model.StartDate,
                 EndDate = model.EndDate,
@@ -154,10 +140,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: Periods/Edit/5
-        /// <summary>
-        /// Muestra el formulario para editar un período existente.
-        /// </summary>
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(Guid? id)
         {
             if (id == null)
             {
@@ -173,7 +156,7 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
-            var model = new PeriodModel
+            var model = new PeriodVm
             {
                 Id = period.Id,
                 Name = period.Name,
@@ -188,12 +171,9 @@ namespace Control_De_Tareas.Controllers
         }
 
         // POST: Periods/Edit/5
-        /// <summary>
-        /// Procesa la edición de un período existente.
-        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, PeriodModel model)
+        public async Task<IActionResult> Edit(Guid id, PeriodVm model)
         {
             if (id != model.Id)
             {
@@ -214,7 +194,6 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
-            // Validación: No permitir editar si tiene ofertas de cursos
             if (period.CourseOfferings.Any(co => !co.IsSoftDeleted))
             {
                 ModelState.AddModelError("",
@@ -222,7 +201,6 @@ namespace Control_De_Tareas.Controllers
                 return View(model);
             }
 
-            // Validación: Si se intenta activar, verificar que no haya otro período activo
             if (model.IsActive && !period.IsActive)
             {
                 var hasActivePeriod = await _context.Periods
@@ -236,7 +214,6 @@ namespace Control_De_Tareas.Controllers
                 }
             }
 
-            // Actualizar entidad
             period.Name = model.Name;
             period.StartDate = model.StartDate;
             period.EndDate = model.EndDate;
@@ -249,10 +226,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: Periods/Delete/5
-        /// <summary>
-        /// Muestra confirmación para eliminar un período.
-        /// </summary>
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
             {
@@ -268,7 +242,7 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
-            var model = new PeriodModel
+            var model = new PeriodVm
             {
                 Id = period.Id,
                 Name = period.Name,
@@ -283,12 +257,9 @@ namespace Control_De_Tareas.Controllers
         }
 
         // POST: Periods/Delete/5
-        /// <summary>
-        /// Procesa la eliminación lógica (soft delete) de un período.
-        /// </summary>
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
             var period = await _context.Periods
                 .Include(p => p.CourseOfferings)
@@ -299,14 +270,12 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
-            // Validación: No permitir eliminar si tiene ofertas de cursos
             if (period.CourseOfferings.Any(co => !co.IsSoftDeleted))
             {
                 TempData["Error"] = "No se puede eliminar un período que tiene ofertas de cursos asignadas.";
                 return RedirectToAction(nameof(Index));
             }
 
-            // Soft delete
             period.IsSoftDeleted = true;
             period.IsActive = false;
 
@@ -317,12 +286,9 @@ namespace Control_De_Tareas.Controllers
         }
 
         // POST: Periods/ToggleActive/5
-        /// <summary>
-        /// Activa o desactiva un período.
-        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ToggleActive(int id)
+        public async Task<IActionResult> ToggleActive(Guid id)
         {
             var period = await _context.Periods
                 .FirstOrDefaultAsync(p => p.Id == id && !p.IsSoftDeleted);
@@ -332,7 +298,6 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
-            // Si se va a activar, desactivar otros períodos
             if (!period.IsActive)
             {
                 var activePeriods = await _context.Periods

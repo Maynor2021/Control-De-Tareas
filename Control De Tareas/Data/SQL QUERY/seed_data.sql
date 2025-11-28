@@ -26,7 +26,7 @@ DELETE FROM AuditLogs;
 DELETE FROM Grades;
 DELETE FROM SubmissionFiles;
 DELETE FROM Submissions;
-DELETE FROM Tasks;
+DELETE FROM Tasks;  -- CORREGIDO: Tasks en lugar de Tareas
 DELETE FROM Announcements;
 DELETE FROM Enrollments;
 DELETE FROM CourseOfferings;
@@ -41,13 +41,6 @@ DELETE FROM Courses;
 
 -- Reiniciar identidades SOLO para tablas que usan INT IDENTITY
 DBCC CHECKIDENT ('AuditLogs', RESEED, 0);
-DBCC CHECKIDENT ('Grades', RESEED, 0);
-DBCC CHECKIDENT ('SubmissionFiles', RESEED, 0);
-DBCC CHECKIDENT ('Announcements', RESEED, 0);
-DBCC CHECKIDENT ('Enrollments', RESEED, 0);
-DBCC CHECKIDENT ('CourseOfferings', RESEED, 0);
-DBCC CHECKIDENT ('Periods', RESEED, 0);
-DBCC CHECKIDENT ('Courses', RESEED, 0);
 
 -- Habilitar constraints nuevamente
 EXEC sp_MSforeachtable 'ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL';
@@ -57,10 +50,13 @@ PRINT 'Limpieza completada. Todas las tablas vacías.';
 -- =====================================================
 -- DECLARACIÓN DE GUIDS FIJOS PARA CONSISTENCIA
 -- =====================================================
+
+-- Roles
 DECLARE @AdminRoleId UNIQUEIDENTIFIER = NEWID();
 DECLARE @ProfesorRoleId UNIQUEIDENTIFIER = NEWID();
 DECLARE @EstudianteRoleId UNIQUEIDENTIFIER = NEWID();
 
+-- Usuarios
 DECLARE @AdminUserId UNIQUEIDENTIFIER = NEWID();
 DECLARE @Profesor1Id UNIQUEIDENTIFIER = NEWID();
 DECLARE @Profesor2Id UNIQUEIDENTIFIER = NEWID();
@@ -76,7 +72,7 @@ DECLARE @Estudiante6Id UNIQUEIDENTIFIER = NEWID();
 DECLARE @Estudiante7Id UNIQUEIDENTIFIER = NEWID();
 DECLARE @Estudiante8Id UNIQUEIDENTIFIER = NEWID();
 
--- GUIDS para ModuleGroup
+-- ModuleGroup (GUIDS fijos para consistencia)
 DECLARE @MGMatriculasId UNIQUEIDENTIFIER = 'F51DF7BE-A9FD-4166-9BB1-1C83BF1618CA';
 DECLARE @MGUsuariosId UNIQUEIDENTIFIER = '639E4AEB-233E-4E89-BE81-8751200C7C25';
 DECLARE @MGCursosId UNIQUEIDENTIFIER = '470FEB6C-1231-48B0-93E5-94B2C6CEF2E9';
@@ -86,6 +82,26 @@ DECLARE @MGAuditoriaId UNIQUEIDENTIFIER = NEWID();
 DECLARE @MGAnunciosId UNIQUEIDENTIFIER = NEWID();
 DECLARE @MGCalificarId UNIQUEIDENTIFIER = NEWID();
 DECLARE @MGMisEntregasId UNIQUEIDENTIFIER = NEWID();
+
+-- Cursos (GUIDS fijos)
+DECLARE @CursoMAT101Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @CursoLEN102Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @CursoFIS201Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @CursoQUI202Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @CursoHIS301Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @CursoBIO302Id UNIQUEIDENTIFIER = NEWID();
+
+-- Periodos (GUIDS fijos)
+DECLARE @Periodo1Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @Periodo2Id UNIQUEIDENTIFIER = NEWID();
+
+-- CourseOfferings (GUIDS fijos)
+DECLARE @OfertaMAT101Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @OfertaLEN102Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @OfertaFIS201Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @OfertaQUI202Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @OfertaHIS301Id UNIQUEIDENTIFIER = NEWID();
+DECLARE @OfertaBIO302Id UNIQUEIDENTIFIER = NEWID();
 
 -- =====================================================
 -- INSERCIÓN COMPLETA DE DATOS CORREGIDOS
@@ -235,56 +251,39 @@ INSERT INTO UserRoles (Id, UserId, RoleId, CreatAt, IsSoftDeleted) VALUES
 
 PRINT '- UserRoles insertados: 13';
 
--- 7. Insertar Cursos (manteniendo INT IDENTITY)
-INSERT INTO Courses (Code, Title, Description, CreatedAt, IsActive, IsSoftDeleted) VALUES
-('MAT101', 'Matemáticas Básicas', 'Álgebra, geometría y cálculo básico', GETDATE(), 1, 0),
-('LEN102', 'Lenguaje y Literatura', 'Gramática, redacción y análisis literario', GETDATE(), 1, 0),
-('FIS201', 'Física General', 'Mecánica, termodinámica y electromagnetismo', GETDATE(), 1, 0),
-('QUI202', 'Química Orgánica', 'Compuestos orgánicos y reacciones químicas', GETDATE(), 1, 0),
-('HIS301', 'Historia Universal', 'Historia mundial desde la antigüedad', GETDATE(), 1, 0),
-('BIO302', 'Biología Celular', 'Estructura y función celular', GETDATE(), 1, 0);
+-- 7. Insertar Cursos (CON GUIDS FIJOS)
+INSERT INTO Courses (Id, Code, Title, Description, CreatedAt, IsActive, IsSoftDeleted) VALUES
+(@CursoMAT101Id, 'MAT101', 'Matemáticas Básicas', 'Álgebra, geometría y cálculo básico', GETDATE(), 1, 0),
+(@CursoLEN102Id, 'LEN102', 'Lenguaje y Literatura', 'Gramática, redacción y análisis literario', GETDATE(), 1, 0),
+(@CursoFIS201Id, 'FIS201', 'Física General', 'Mecánica, termodinámica y electromagnetismo', GETDATE(), 1, 0),
+(@CursoQUI202Id, 'QUI202', 'Química Orgánica', 'Compuestos orgánicos y reacciones químicas', GETDATE(), 1, 0),
+(@CursoHIS301Id, 'HIS301', 'Historia Universal', 'Historia mundial desde la antigüedad', GETDATE(), 1, 0),
+(@CursoBIO302Id, 'BIO302', 'Biología Celular', 'Estructura y función celular', GETDATE(), 1, 0);
 
 PRINT '- Cursos insertados: 6';
 
--- 8. Insertar Periodos Académicos
-INSERT INTO Periods (Name, StartDate, EndDate, IsActive, CreatedAt, IsSoftDeleted) VALUES
-('Primer Semestre 2025', '2025-01-15', '2025-06-15', 1, GETDATE(), 0),
-('Segundo Semestre 2025', '2025-07-01', '2025-12-15', 0, GETDATE(), 0);
+-- 8. Insertar Periodos Académicos (CON GUIDS FIJOS)
+INSERT INTO Periods (Id, Name, StartDate, EndDate, IsActive, CreatedAt, IsSoftDeleted) VALUES
+(@Periodo1Id, 'Primer Semestre 2025', '2025-01-15', '2025-06-15', 1, GETDATE(), 0),
+(@Periodo2Id, 'Segundo Semestre 2025', '2025-07-01', '2025-12-15', 0, GETDATE(), 0);
 
 PRINT '- Periodos insertados: 2';
 
--- 9. Insertar Ofertas de Cursos (CourseOfferings)
-INSERT INTO CourseOfferings (CourseId, ProfessorId, PeriodId, Section, CreatedAt, IsActive, IsSoftDeleted)
-SELECT 
-    c.Id,
-    CASE 
-        WHEN c.Code = 'MAT101' THEN @Profesor1Id
-        WHEN c.Code = 'LEN102' THEN @Profesor2Id
-        WHEN c.Code = 'FIS201' THEN @Profesor3Id
-        WHEN c.Code = 'QUI202' THEN @Profesor4Id
-        WHEN c.Code = 'HIS301' THEN @Profesor2Id
-        WHEN c.Code = 'BIO302' THEN @Profesor3Id
-    END,
-    per.Id,
-    CASE 
-        WHEN c.Code = 'MAT101' THEN 'MAT101-01'
-        WHEN c.Code = 'LEN102' THEN 'LEN102-01'
-        WHEN c.Code = 'FIS201' THEN 'FIS201-01'
-        WHEN c.Code = 'QUI202' THEN 'QUI202-01'
-        WHEN c.Code = 'HIS301' THEN 'HIS301-01'
-        WHEN c.Code = 'BIO302' THEN 'BIO302-01'
-    END,
-    GETDATE(),
-    1,
-    0
-FROM Courses c
-CROSS JOIN (SELECT Id FROM Periods WHERE IsActive = 1) per;
+-- 9. Insertar Ofertas de Cursos (CourseOfferings CON GUIDS FIJOS)
+INSERT INTO CourseOfferings (Id, CourseId, ProfessorId, PeriodId, Section, CreatedAt, IsActive, IsSoftDeleted) VALUES
+(@OfertaMAT101Id, @CursoMAT101Id, @Profesor1Id, @Periodo1Id, 'A', GETDATE(), 1, 0),
+(@OfertaLEN102Id, @CursoLEN102Id, @Profesor2Id, @Periodo1Id, 'A', GETDATE(), 1, 0),
+(@OfertaFIS201Id, @CursoFIS201Id, @Profesor3Id, @Periodo1Id, 'A', GETDATE(), 1, 0),
+(@OfertaQUI202Id, @CursoQUI202Id, @Profesor4Id, @Periodo1Id, 'A', GETDATE(), 1, 0),
+(@OfertaHIS301Id, @CursoHIS301Id, @Profesor2Id, @Periodo1Id, 'A', GETDATE(), 1, 0),
+(@OfertaBIO302Id, @CursoBIO302Id, @Profesor3Id, @Periodo1Id, 'A', GETDATE(), 1, 0);
 
 PRINT '- Ofertas de cursos insertadas: 6';
 
--- 10. Insertar Inscripciones (Enrollments) - TODOS LOS ESTUDIANTES EN TODOS LOS CURSOS
-INSERT INTO Enrollments (CourseOfferingId, StudentId, EnrolledAt, Status, IsSoftDeleted)
+-- 10. Insertar Inscripciones (Enrollments CON GUIDS)
+INSERT INTO Enrollments (Id, CourseOfferingId, StudentId, EnrolledAt, Status, IsSoftDeleted)
 SELECT 
+    NEWID(), -- ID como GUID
     co.Id, 
     u.UserId, 
     DATEADD(DAY, -ABS(CHECKSUM(NEWID())) % 30, GETDATE()), -- Fecha aleatoria en los últimos 30 días
@@ -297,7 +296,7 @@ ORDER BY u.UserName, co.Id;
 
 PRINT '- Inscripciones insertadas: ' + CAST(@@ROWCOUNT AS VARCHAR);
 
--- 11. Insertar Tareas (Tasks) - 3 tareas por curso
+-- 11. Insertar Tareas (Tasks CON GUIDS) - 3 tareas por curso
 INSERT INTO Tasks (Id, CourseOfferingId, Title, Description, DueDate, CreatedBy, MaxScore, IsSoftDeleted)
 -- Tareas para MAT101-01
 SELECT NEWID(), co.Id, 
@@ -307,7 +306,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaMAT101Id
 
 UNION ALL
 
@@ -318,7 +317,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaMAT101Id
 
 UNION ALL
 
@@ -329,7 +328,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaMAT101Id
 
 UNION ALL
 
@@ -341,7 +340,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'LEN102-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaLEN102Id
 
 UNION ALL
 
@@ -352,7 +351,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'LEN102-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaLEN102Id
 
 UNION ALL
 
@@ -363,7 +362,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'LEN102-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaLEN102Id
 
 UNION ALL
 
@@ -375,7 +374,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'FIS201-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaFIS201Id
 
 UNION ALL
 
@@ -386,7 +385,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'FIS201-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaFIS201Id
 
 UNION ALL
 
@@ -397,7 +396,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'FIS201-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaFIS201Id
 
 UNION ALL
 
@@ -409,7 +408,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'QUI202-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaQUI202Id
 
 UNION ALL
 
@@ -420,7 +419,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'QUI202-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaQUI202Id
 
 UNION ALL
 
@@ -431,7 +430,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'QUI202-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaQUI202Id
 
 UNION ALL
 
@@ -443,7 +442,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'HIS301-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaHIS301Id
 
 UNION ALL
 
@@ -454,7 +453,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'HIS301-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaHIS301Id
 
 UNION ALL
 
@@ -465,7 +464,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'HIS301-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaHIS301Id
 
 UNION ALL
 
@@ -477,7 +476,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'BIO302-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaBIO302Id
 
 UNION ALL
 
@@ -488,7 +487,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'BIO302-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaBIO302Id
 
 UNION ALL
 
@@ -499,7 +498,7 @@ SELECT NEWID(), co.Id,
     co.ProfessorId, 
     100,
     0
-FROM CourseOfferings co WHERE co.Section = 'BIO302-01';
+FROM CourseOfferings co WHERE co.Id = @OfertaBIO302Id;
 
 PRINT '- Tareas insertadas: 18 (3 por curso)';
 
@@ -536,9 +535,10 @@ ORDER BY t.Id, e.StudentId;
 
 PRINT '- Entregas insertadas: ' + CAST(@@ROWCOUNT AS VARCHAR);
 
--- 13. Insertar Calificaciones (Grades) - TODAS las entregas calificadas
-INSERT INTO Grades (SubmissionId, GraderId, Score, Feedback, GradedAt, IsSoftDeleted)
+-- 13. Insertar Calificaciones (Grades CON GUIDS) - TODAS las entregas calificadas
+INSERT INTO Grades (Id, SubmissionId, GraderId, Score, Feedback, GradedAt, IsSoftDeleted)
 SELECT 
+    NEWID(), -- ID como GUID
     s.Id,
     co.ProfessorId,
     -- Calificaciones realistas basadas en el estudiante y curso
@@ -582,81 +582,81 @@ INNER JOIN Grades g ON s.Id = g.SubmissionId;
 
 PRINT '- Calificaciones actualizadas en entregas';
 
--- 15. Insertar Anuncios (Announcements)
-INSERT INTO Announcements (CourseOfferingId, Title, Body, PostedAt, PostedBy, IsSoftDeleted)
+-- 15. Insertar Anuncios (Announcements CON GUIDS)
+INSERT INTO Announcements (Id, CourseOfferingId, Title, Body, PostedAt, PostedBy, IsSoftDeleted)
 -- Anuncios para MAT101-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Bienvenida al Curso de Matemáticas', 
     'Bienvenidos al curso de Matemáticas Básicas. Revisen el sílabo en la plataforma.', 
     '2025-01-16 08:00:00', 
     co.ProfessorId,
     0
-FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaMAT101Id
 
 UNION ALL
 
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Recordatorio: Tarea 1', 
     'Recuerden que la Tarea 1 vence el 15 de febrero. No olviden entregarla.', 
     '2025-02-10 10:00:00', 
     co.ProfessorId,
     0
-FROM CourseOfferings co WHERE co.Section = 'MAT101-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaMAT101Id
 
 UNION ALL
 
 -- Anuncios para LEN102-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Inicio de Clases de Lenguaje', 
     'Estimados estudiantes, las clases inician el lunes 20 de enero. Favor revisar material.', 
     '2025-01-17 09:00:00', 
     co.ProfessorId,
     0
-FROM CourseOfferings co WHERE co.Section = 'LEN102-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaLEN102Id
 
 UNION ALL
 
 -- Anuncios para FIS201-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Laboratorio de Física', 
     'El primer laboratorio será el 25 de enero. Traer calculadora y cuaderno de apuntes.', 
     '2025-01-18 11:00:00', 
     co.ProfessorId,
     0
-FROM CourseOfferings co WHERE co.Section = 'FIS201-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaFIS201Id
 
 UNION ALL
 
 -- Anuncios para QUI202-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Material de Química', 
     'El libro de texto ya está disponible en la biblioteca.', 
     '2025-01-19 14:00:00', 
     co.ProfessorId,
     0
-FROM CourseOfferings co WHERE co.Section = 'QUI202-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaQUI202Id
 
 UNION ALL
 
 -- Anuncios para HIS301-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Documentales Recomendados', 
     'Lista de documentales históricos disponibles en la plataforma.', 
     '2025-01-20 16:00:00', 
     co.ProfessorId,
     0
-FROM CourseOfferings co WHERE co.Section = 'HIS301-01'
+FROM CourseOfferings co WHERE co.Id = @OfertaHIS301Id
 
 UNION ALL
 
 -- Anuncios para BIO302-01
-SELECT co.Id, 
+SELECT NEWID(), co.Id, 
     'Salida de Campo', 
     'Programación de salida de campo para observación de ecosistemas.', 
     '2025-01-21 13:00:00', 
     co.ProfessorId,
     0
-FROM CourseOfferings co WHERE co.Section = 'BIO302-01';
+FROM CourseOfferings co WHERE co.Id = @OfertaBIO302Id;
 
 PRINT '- Anuncios insertados: 7';
 
@@ -722,6 +722,9 @@ PRINT '- NUEVO: Módulos de CourseOfferings agregados con permisos correctos';
 PRINT '- NUEVO: Estudiantes ahora pueden ver "Mis Cursos"';
 PRINT '- NUEVO: Profesores pueden ver "Mis Cursos" y "Gestión de Ofertas"';
 PRINT '- NUEVO: Administradores tienen acceso completo a CourseOfferings';
+PRINT '- ACTUALIZADO: TODAS las entidades ahora usan GUIDS en lugar de INT';
+PRINT '- ACTUALIZADO: GUIDS fijos para consistencia en relaciones';
+PRINT '- ACTUALIZADO: Eliminado DBCC CHECKIDENT para tablas con GUID';
 
 -- =====================================================
 -- MÓDULOS CORREGIDOS PARA COURSEOFFERINGS Y CURSOS

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Control_De_Tareas.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class inital : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,8 +15,7 @@ namespace Control_De_Tareas.Migrations
                 name: "Courses",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Code = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
                     Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
@@ -39,8 +38,7 @@ namespace Control_De_Tareas.Migrations
                     CreateDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatBy = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ModifieBy = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    RolId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -51,8 +49,7 @@ namespace Control_De_Tareas.Migrations
                 name: "Periods",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     StartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     EndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -104,7 +101,7 @@ namespace Control_De_Tareas.Migrations
                         column: x => x.ModuloAgrupadoId,
                         principalTable: "ModuleGroup",
                         principalColumn: "GroupModuleId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -119,7 +116,7 @@ namespace Control_De_Tareas.Migrations
                     CreateAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
                     CreatBy = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ModifieBy = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     RolId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
@@ -130,7 +127,7 @@ namespace Control_De_Tareas.Migrations
                         column: x => x.RolId,
                         principalTable: "Roles",
                         principalColumn: "RoleId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -155,13 +152,13 @@ namespace Control_De_Tareas.Migrations
                         column: x => x.ModuleId,
                         principalTable: "Module",
                         principalColumn: "ModuleId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_RoleModules_Roles_RoleId",
                         column: x => x.RoleId,
                         principalTable: "Roles",
                         principalColumn: "RoleId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -173,7 +170,7 @@ namespace Control_De_Tareas.Migrations
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     Action = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Entity = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    EntityId = table.Column<int>(type: "int", nullable: true),
+                    EntityId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
                     Details = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
@@ -193,11 +190,10 @@ namespace Control_De_Tareas.Migrations
                 name: "CourseOfferings",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CourseId = table.Column<int>(type: "int", nullable: false),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CourseId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ProfessorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    PeriodId = table.Column<int>(type: "int", nullable: false),
+                    PeriodId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Section = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
                     IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
@@ -257,9 +253,8 @@ namespace Control_De_Tareas.Migrations
                 name: "Announcements",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CourseOfferingId = table.Column<int>(type: "int", nullable: false),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CourseOfferingId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Body = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     PostedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
@@ -274,7 +269,7 @@ namespace Control_De_Tareas.Migrations
                         column: x => x.CourseOfferingId,
                         principalTable: "CourseOfferings",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Announcements_Users_PostedBy",
                         column: x => x.PostedBy,
@@ -287,9 +282,8 @@ namespace Control_De_Tareas.Migrations
                 name: "Enrollments",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CourseOfferingId = table.Column<int>(type: "int", nullable: false),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CourseOfferingId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     StudentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     EnrolledAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
                     Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false, defaultValue: "Active"),
@@ -303,7 +297,7 @@ namespace Control_De_Tareas.Migrations
                         column: x => x.CourseOfferingId,
                         principalTable: "CourseOfferings",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Enrollments_Users_StudentId",
                         column: x => x.StudentId,
@@ -317,14 +311,13 @@ namespace Control_De_Tareas.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CourseOfferingId = table.Column<int>(type: "int", nullable: false),
+                    CourseOfferingId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Title = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     DueDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     MaxScore = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    CourseOfferingsId = table.Column<int>(type: "int", nullable: true)
+                    IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -335,11 +328,6 @@ namespace Control_De_Tareas.Migrations
                         principalTable: "CourseOfferings",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Tasks_CourseOfferings_CourseOfferingsId",
-                        column: x => x.CourseOfferingsId,
-                        principalTable: "CourseOfferings",
-                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Tasks_Users_CreatedBy",
                         column: x => x.CreatedBy,
@@ -357,9 +345,9 @@ namespace Control_De_Tareas.Migrations
                     StudentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     SubmittedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
                     Comments = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    CurrentGrade = table.Column<decimal>(type: "decimal(5,2)", nullable: false),
+                    CurrentGrade = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false)
+                    IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {
@@ -369,7 +357,7 @@ namespace Control_De_Tareas.Migrations
                         column: x => x.TaskId,
                         principalTable: "Tasks",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Submissions_Users_StudentId",
                         column: x => x.StudentId,
@@ -382,11 +370,10 @@ namespace Control_De_Tareas.Migrations
                 name: "Grades",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     SubmissionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     GraderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Score = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
+                    Score = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     Feedback = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     GradedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
                     IsSoftDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
@@ -399,7 +386,7 @@ namespace Control_De_Tareas.Migrations
                         column: x => x.SubmissionId,
                         principalTable: "Submissions",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Grades_Users_GraderId",
                         column: x => x.GraderId,
@@ -412,8 +399,7 @@ namespace Control_De_Tareas.Migrations
                 name: "SubmissionFiles",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     SubmissionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     FilePath = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     FileName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
@@ -428,7 +414,7 @@ namespace Control_De_Tareas.Migrations
                         column: x => x.SubmissionId,
                         principalTable: "Submissions",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(
@@ -457,6 +443,13 @@ namespace Control_De_Tareas.Migrations
                 column: "CourseId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CourseOfferings_CourseId_PeriodId_Section",
+                table: "CourseOfferings",
+                columns: new[] { "CourseId", "PeriodId", "Section" },
+                unique: true,
+                filter: "[IsSoftDeleted] = 0");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CourseOfferings_PeriodId",
                 table: "CourseOfferings",
                 column: "PeriodId");
@@ -467,6 +460,13 @@ namespace Control_De_Tareas.Migrations
                 column: "ProfessorId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Courses_Code",
+                table: "Courses",
+                column: "Code",
+                unique: true,
+                filter: "[IsSoftDeleted] = 0");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Enrollments_CourseOfferingId",
                 table: "Enrollments",
                 column: "CourseOfferingId");
@@ -475,7 +475,8 @@ namespace Control_De_Tareas.Migrations
                 name: "IX_Enrollments_CourseOfferingId_StudentId",
                 table: "Enrollments",
                 columns: new[] { "CourseOfferingId", "StudentId" },
-                unique: true);
+                unique: true,
+                filter: "[IsSoftDeleted] = 0");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Enrollments_StudentId",
@@ -538,11 +539,6 @@ namespace Control_De_Tareas.Migrations
                 column: "CourseOfferingId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Tasks_CourseOfferingsId",
-                table: "Tasks",
-                column: "CourseOfferingsId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Tasks_CreatedBy",
                 table: "Tasks",
                 column: "CreatedBy");
@@ -561,7 +557,8 @@ namespace Control_De_Tareas.Migrations
                 name: "IX_Users_Email",
                 table: "Users",
                 column: "Email",
-                unique: true);
+                unique: true,
+                filter: "[IsSoftDeleted] = 0");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_RolId",

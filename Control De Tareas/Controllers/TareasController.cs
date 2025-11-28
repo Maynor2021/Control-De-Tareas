@@ -1,7 +1,7 @@
 using Control_De_Tareas.Authorization;
 using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
-using Control_De_Tareas.Data.ViewModels;
+using Control_De_Tareas.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -36,9 +36,9 @@ namespace Control_De_Tareas.Controllers
         }
 
         [Authorize(Policy = "Admin")]
-        public IActionResult Crear()
+        public async Task<IActionResult> Crear()
         {
-            var courseOfferings = _context.CourseOfferings
+            var courseOfferings = await _context.CourseOfferings
                 .Where(co => !co.IsSoftDeleted && co.IsActive)
                 .Include(co => co.Course)
                 .Select(co => new SelectListItem
@@ -46,7 +46,7 @@ namespace Control_De_Tareas.Controllers
                     Value = co.Id.ToString(),
                     Text = $"{co.Course.Code} - {co.Course.Title} - Sección {co.Section}"
                 })
-                .ToList();
+                .ToListAsync();
 
             ViewBag.CourseOfferings = courseOfferings;
             return View();
@@ -58,12 +58,16 @@ namespace Control_De_Tareas.Controllers
         public async Task<IActionResult> Crear(TareaCreateVm vm)
         {
             if (!ModelState.IsValid)
+            {
+                await LoadCourseOfferingsAsync();
                 return View(vm);
+            }
 
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(claim, out var userGuid))
             {
                 ModelState.AddModelError("", "No se pudo identificar al usuario.");
+                await LoadCourseOfferingsAsync();
                 return View(vm);
             }
 
@@ -71,6 +75,7 @@ namespace Control_De_Tareas.Controllers
             if (!existsCO)
             {
                 ModelState.AddModelError(nameof(vm.CourseOfferingId), "La oferta de curso no existe.");
+                await LoadCourseOfferingsAsync();
                 return View(vm);
             }
 
@@ -90,12 +95,14 @@ namespace Control_De_Tareas.Controllers
             {
                 _context.Tareas.Add(tarea);
                 await _context.SaveChangesAsync();
+                TempData["Success"] = "Tarea creada exitosamente";
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al guardar la tarea");
                 ModelState.AddModelError("", "Error al guardar la tarea en la base de datos.");
+                await LoadCourseOfferingsAsync();
                 return View(vm);
             }
         }
@@ -114,7 +121,6 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
-            // CARGAR SUBMISSION SI ES ESTUDIANTE
             if (User.IsInRole("Estudiante"))
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -126,7 +132,6 @@ namespace Control_De_Tareas.Controllers
                 }
             }
 
-            // SI ES PROFESOR, PODEMOS CARGAR INFORMACIÓN ADICIONAL
             if (User.IsInRole("Profesor"))
             {
                 var totalEntregas = await _context.Submissions
@@ -146,6 +151,7 @@ namespace Control_De_Tareas.Controllers
         {
             var tarea = await _context.Tareas
                 .Include(t => t.CourseOffering)
+                    .ThenInclude(co => co.Course)
                 .FirstOrDefaultAsync(t => t.Id == id && !t.IsSoftDeleted);
 
             if (tarea == null)
@@ -153,7 +159,6 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
-            ViewBag.CourseOffering = tarea.CourseOffering;
             return View(tarea);
         }
 
@@ -173,7 +178,8 @@ namespace Control_De_Tareas.Controllers
             return View(tarea);
         }
 
-        [HttpPost]
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
         [Authorize(Policy = "Admin")]
         public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
@@ -215,6 +221,21 @@ namespace Control_De_Tareas.Controllers
                 .ToListAsync();
 
             return View(tareasConSubmissions);
+        }
+
+        private async Task LoadCourseOfferingsAsync()
+        {
+            var courseOfferings = await _context.CourseOfferings
+                .Where(co => !co.IsSoftDeleted && co.IsActive)
+                .Include(co => co.Course)
+                .Select(co => new SelectListItem
+                {
+                    Value = co.Id.ToString(),
+                    Text = $"{co.Course.Code} - {co.Course.Title} - Sección {co.Section}"
+                })
+                .ToListAsync();
+
+            ViewBag.CourseOfferings = courseOfferings;
         }
     }
 }

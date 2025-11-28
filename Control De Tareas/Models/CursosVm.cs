@@ -7,7 +7,7 @@ namespace Control_De_Tareas.Models
 
     public class CursoDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
         public string Codigo { get; set; } = string.Empty;
         public string Nombre { get; set; } = string.Empty;
         public string Descripcion { get; set; } = string.Empty;

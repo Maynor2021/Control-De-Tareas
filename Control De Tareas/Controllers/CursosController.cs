@@ -23,7 +23,7 @@ namespace Control_De_Tareas.Controllers
                 .Where(c => !c.IsSoftDeleted)
                 .Select(c => new CursoDto
                 {
-                    Id = c.Id,
+                    Id = c.Id, // ← Ya usa Guid
                     Codigo = c.Code,
                     Nombre = c.Title,
                     Descripcion = c.Description ?? "",
@@ -59,6 +59,7 @@ namespace Control_De_Tareas.Controllers
 
             var curso = new Courses
             {
+                Id = Guid.NewGuid(),
                 Code = Codigo,
                 Title = Nombre,
                 Description = Descripcion,

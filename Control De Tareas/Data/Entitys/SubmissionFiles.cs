@@ -5,7 +5,7 @@ namespace Control_De_Tareas.Data.Entitys
     [Table("SubmissionFiles")]
     public class SubmissionFiles
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
         public Guid SubmissionId { get; set; }
         public string FilePath { get; set; } = string.Empty;
         public string? FileName { get; set; }

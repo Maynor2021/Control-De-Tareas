@@ -5,7 +5,7 @@ namespace Control_De_Tareas.Data.Entitys
     [Table("Grades")]
     public class Grades
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
         public Guid SubmissionId { get; set; }
         public Guid GraderId { get; set; }
         public decimal Score { get; set; }

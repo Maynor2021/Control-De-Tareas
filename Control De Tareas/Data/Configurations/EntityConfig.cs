@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Control_De_Tareas.Data.Entitys;
 
@@ -32,7 +32,7 @@ namespace Control_De_Tareas.Data.Configurations
         {
             builder.ToTable("Courses");
 
-            builder.HasKey(c => c.Id);
+            builder.HasKey(c => c.Id); // ← Ya usa Guid
 
             builder.Property(c => c.Code)
                    .IsRequired()
@@ -245,6 +245,9 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(a => a.Entity)
                    .HasMaxLength(100);
 
+            builder.Property(a => a.EntityId) // ← Ya usa Guid?
+                   .IsRequired(false);
+
             builder.Property(a => a.Details)
                    .HasMaxLength(2000);
 
@@ -269,7 +272,7 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Grades> builder)
         {
-            builder.HasKey(g => g.Id);
+            builder.HasKey(g => g.Id); // ← Ya usa Guid
 
             builder.Property(g => g.Score)
                    .IsRequired()
@@ -304,7 +307,7 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<SubmissionFiles> builder)
         {
-            builder.HasKey(sf => sf.Id);
+            builder.HasKey(sf => sf.Id); // ← Ya usa Guid
 
             builder.Property(sf => sf.FilePath)
                    .IsRequired()
@@ -333,7 +336,7 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Announcements> builder)
         {
-            builder.HasKey(a => a.Id);
+            builder.HasKey(a => a.Id); // ← Ya usa Guid
 
             builder.Property(a => a.Title)
                    .IsRequired()
@@ -354,7 +357,7 @@ namespace Control_De_Tareas.Data.Configurations
 
             builder.HasOne(a => a.CourseOffering)
                    .WithMany(co => co.Announcements)
-                   .HasForeignKey(a => a.CourseOfferingId)
+                   .HasForeignKey(a => a.CourseOfferingId) // ← Ya usa Guid
                    .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(a => a.PostedByUser)
@@ -372,7 +375,7 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<CourseOfferings> builder)
         {
-            builder.HasKey(co => co.Id);
+            builder.HasKey(co => co.Id); // ← Ya usa Guid
 
             builder.Property(co => co.Section)
                    .HasMaxLength(10);
@@ -389,7 +392,7 @@ namespace Control_De_Tareas.Data.Configurations
 
             builder.HasOne(co => co.Course)
                    .WithMany()
-                   .HasForeignKey(co => co.CourseId)
+                   .HasForeignKey(co => co.CourseId) // ← Ya usa Guid
                    .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(co => co.Professor)
@@ -399,7 +402,7 @@ namespace Control_De_Tareas.Data.Configurations
 
             builder.HasOne(co => co.Period)
                    .WithMany(p => p.CourseOfferings)
-                   .HasForeignKey(co => co.PeriodId)
+                   .HasForeignKey(co => co.PeriodId) // ← Ya usa Guid
                    .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasIndex(co => co.CourseId);
@@ -412,7 +415,7 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Enrollments> builder)
         {
-            builder.HasKey(e => e.Id);
+            builder.HasKey(e => e.Id); // ← Ya usa Guid
 
             builder.Property(e => e.EnrolledAt)
                    .IsRequired()
@@ -428,7 +431,7 @@ namespace Control_De_Tareas.Data.Configurations
 
             builder.HasOne(e => e.CourseOffering)
                    .WithMany(co => co.Enrollments)
-                   .HasForeignKey(e => e.CourseOfferingId)
+                   .HasForeignKey(e => e.CourseOfferingId) // ← Ya usa Guid
                    .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(e => e.Student)
@@ -447,7 +450,7 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Periods> builder)
         {
-            builder.HasKey(p => p.Id);
+            builder.HasKey(p => p.Id); // ← Ya usa Guid
 
             builder.Property(p => p.Name)
                    .IsRequired()

@@ -13,12 +13,12 @@ namespace Control_De_Tareas.Data.Entitys
         /// <summary>
         /// Identificador único de la oferta de curso.
         /// </summary>
-        public int Id { get; set; }
+        public Guid Id { get; set; } // CAMBIADO de int a Guid
 
         /// <summary>
         /// Identificador del curso base asociado.
         /// </summary>
-        public int CourseId { get; set; }
+        public Guid CourseId { get; set; } // CAMBIADO de int a Guid
 
         /// <summary>
         /// Identificador del profesor asignado a esta oferta.
@@ -28,7 +28,7 @@ namespace Control_De_Tareas.Data.Entitys
         /// <summary>
         /// Identificador del periodo académico en el cual se impartirá este curso.
         /// </summary>
-        public int PeriodId { get; set; }
+        public Guid PeriodId { get; set; } // CAMBIADO de int a Guid
 
         /// <summary>
         /// Sección del curso (ejemplo: A1, B, C01).
