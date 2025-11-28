@@ -213,23 +213,23 @@ PRINT '- RoleModules (Permisos) insertados: ' + CAST(@@ROWCOUNT AS VARCHAR);
 -- 5. Insertar Usuarios (con contraseñas MD5 en MAYÚSCULAS según tu función)
 INSERT INTO Users (UserId, UserName, Instructor, Email, PasswordHash, CreateAt, CreatBy, ModifieBy, IsSoftDeleted, RolId) VALUES
 -- Administrador (admin123 en MD5 MAYÚSCULAS)
-(@AdminUserId, 'admin', 'Administrador Principal', 'admin@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @AdminRoleId),
+(@AdminUserId, 'admin', 'Administrador Principal', 'admin@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @AdminRoleId),
 
 -- Profesores (admin123 en MD5 MAYÚSCULAS)
-(@Profesor1Id, 'mgonzalez', 'María González', 'maria.gonzalez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
-(@Profesor2Id, 'crodriguez', 'Carlos Rodríguez', 'carlos.rodriguez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
-(@Profesor3Id, 'alopez', 'Ana López', 'ana.lopez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
-(@Profesor4Id, 'jmartinez', 'José Martínez', 'jose.martinez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
+(@Profesor1Id, 'mgonzalez', 'María González', 'maria.gonzalez@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
+(@Profesor2Id, 'crodriguez', 'Carlos Rodríguez', 'carlos.rodriguez@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
+(@Profesor3Id, 'alopez', 'Ana López', 'ana.lopez@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
+(@Profesor4Id, 'jmartinez', 'José Martínez', 'jose.martinez@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @ProfesorRoleId),
 
 -- Estudiantes (admin123 en MD5 MAYÚSCULAS)
-(@Estudiante1Id, 'est1', 'Ana Martínez', 'ana.martinez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
-(@Estudiante2Id, 'est2', 'Luis Hernández', 'luis.hernandez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
-(@Estudiante3Id, 'est3', 'Sofia Ramírez', 'sofia.ramirez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
-(@Estudiante4Id, 'est4', 'Carlos García', 'carlos.garcia@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
-(@Estudiante5Id, 'est5', 'Marta López', 'marta.lopez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
-(@Estudiante6Id, 'est6', 'Pedro Sánchez', 'pedro.sanchez@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
-(@Estudiante7Id, 'est7', 'Laura Díaz', 'laura.diaz@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
-(@Estudiante8Id, 'est8', 'David Torres', 'david.torres@sistema.com', '0192023A7BBD73250516F069DF18B500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId);
+(@Estudiante1Id, 'est1', 'Ana Martínez', 'ana.martinez@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante2Id, 'est2', 'Luis Hernández', 'luis.hernandez@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante3Id, 'est3', 'Sofia Ramírez', 'sofia.ramirez@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante4Id, 'est4', 'Carlos García', 'carlos.garcia@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante5Id, 'est5', 'Marta López', 'marta.lopez@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante6Id, 'est6', 'Pedro Sánchez', 'pedro.sanchez@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante7Id, 'est7', 'Laura Díaz', 'laura.diaz@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId),
+(@Estudiante8Id, 'est8', 'David Torres', 'david.torres@sistema.com', '0192023a7bbd73250516f069df18b500', GETDATE(), @AdminUserId, @AdminUserId, 0, @EstudianteRoleId);
 
 PRINT '- Usuarios insertados: 13 (1 admin, 4 profesores, 8 estudiantes)';
 
