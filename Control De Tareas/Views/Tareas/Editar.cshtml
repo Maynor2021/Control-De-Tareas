@@ -6,7 +6,7 @@
 
 <h2>Editar tarea – @(course?.Course?.Description ?? "Curso")</h2>
 
-<form asp-action="Editar" method="post" novalidate>
+<form asp-action="Editar" asp-route-id="@Model.Id" method="post" novalidate>
     @Html.AntiForgeryToken()
 
     <input type="hidden" asp-for="Id" />
@@ -36,14 +36,24 @@
         <span asp-validation-for="MaxScore" class="text-danger"></span>
     </div>
 
-    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    <!-- WORKAROUND:
+         Cambiamos a type="button" y forzamos el envío nativo con this.form.submit().
+         Esto suele saltarse handlers que interceptan el submit del botón.
+         Quitar este workaround una vez identificado/eliminado el script que bloquea el submit. -->
+    <button type="button"
+            class="btn btn-primary"
+            onclick="this.disabled=true; this.form.submit();">
+        Guardar cambios
+    </button>
+
     <a asp-action="Index" asp-route-courseOfferingId="@Model.CourseOfferingId" class="btn btn-secondary">Cancelar</a>
 </form>
-
 
 @section Scripts {
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
 }
+
+
 
