@@ -1,59 +1,27 @@
 ﻿@{
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = "Sistema de Control de Tareas";
 }
 
-<div class="dashboard-header">
-    <h1 class="h2">Panel de administración del sistema</h1>
-</div>
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
 
-<!-- Stats Cards -->
-<div class="row">
-    <div class="col-md-3">
-        <div class="card stat-card">
-            <div class="card-body">
-                <h5 class="card-title stat-value">142</h5>
-                <p class="card-text stat-label">Total Usuarios</p>
-                <p class="stat-description">+12 este mes</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card">
-            <div class="card-body">
-                <h5 class="card-title stat-value">24</h5>
-                <p class="card-text stat-label">Cursos Activos</p>
-                <p class="stat-description">8 cursos nuevos</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card">
-            <div class="card-body">
-                <h5 class="card-title stat-value">18</h5>
-                <p class="card-text stat-label">Profesores</p>
-                <p class="stat-description">Personal docente</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card">
-            <div class="card-body">
-                <h5 class="card-title stat-value">124</h5>
-                <p class="card-text stat-label">Estudiantes</p>
-                <p class="stat-description">Activos en sistema</p>
-            </div>
-        </div>
-    </div>
-</div>
+            <!-- Encabezado principal -->
+            <h1 class="display-4 mb-4">Sistema de Control de Tareas Académicas</h1>
 
-<!-- Content area -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Bienvenido a la Plataforma de Control de Tareas y Calificaciones</h5>
-                <p class="card-text">Desde aquí puedes gestionar todos los aspectos del sistema educativo.</p>
+            <!-- Descripción -->
+            <p class="lead mb-5">
+                Plataforma integral para la gestión de cursos, tareas y calificaciones.
+                Accede a tu panel según tu rol en el sistema.
+            </p>
+
+            <!-- Botón de inicio de sesión -->
+            <div class="mt-4">
+                <a asp-controller="Home" asp-action="Login" class="btn btn-primary btn-lg px-5">
+                    Iniciar Sesión
+                </a>
             </div>
+
         </div>
     </div>
 </div>

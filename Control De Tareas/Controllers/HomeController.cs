@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Security.Claims;
+using Newtonsoft.Json;
 
 namespace Control_De_Tareas.Controllers
 {
@@ -22,7 +23,37 @@ namespace Control_De_Tareas.Controllers
 
         public IActionResult Index()
         {
-         //   HttpContext.Session.Clear();
+            // Verificar si hay sesión de usuario
+            var encoded = HttpContext.Session.GetString("UserSession");
+
+            if (!string.IsNullOrEmpty(encoded))
+            {
+                try
+                {
+                    // Deserializar el usuario de la sesión
+                    var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
+                    var user = JsonConvert.DeserializeObject<UserVm>(json);
+
+                    // Redirigir según el rol
+                    if (user?.Rol?.Nombre != null)
+                    {
+                        return user.Rol.Nombre switch
+                        {
+                            "Administrador" => RedirectToAction("Admin", "Dashboard"),
+                            "Profesor" => RedirectToAction("Profesor", "Dashboard"),
+                            "Estudiante" => RedirectToAction("Estudiante", "Dashboard"),
+                            _ => View() // Página principal para otros roles o sin rol
+                        };
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al deserializar sesión de usuario");
+                    HttpContext.Session.Remove("UserSession");
+                }
+            }
+
+            // Mostrar página principal pública
             return View();
         }
 
