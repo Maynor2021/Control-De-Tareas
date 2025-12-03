@@ -2,7 +2,16 @@
 @*
     For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 *@
+
 @{
+    Layout = "_Layout";
+    ViewData["Title"] = "Gestión de Cursos";
+}
+{
+
+    var 
+}
+
    
 <div class="container-fluid py-4">
     <div class="row mb-4">
@@ -34,6 +43,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white">
                 <h5 class="card-title mb-0">Listado de Cursos</h5>
+                <button class="btnaccordion-button">Crear curso</button>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -51,16 +61,21 @@
                         <tbody>
                             @foreach (var course in Model.Cursos)
                             {
-                                <tr class="cursor-pointer" onclick="selectCourse('@course.Id')" style="cursor: pointer;">
-                                    <td>@course.Codigo</td>
-                                    <td>@course.Nombre</td>
-                                    <td>@course.InstructorNombre</td>
-                                    <td>@course.CantidadEstudiantes</td>
-                                    <td>
-                                        <span class="badge @(course.Estado == "Activo" ? "bg-success" : "bg-secondary")">
-                                            @course.Estado
-                                        </span>
-                                    </td>
+                               <tr class="cursor-pointer" style="cursor:pointer">
+                                <td>
+                                        <a asp-action="MenuDetalles" asp-controller="Cursos" asp-route-id="@course.Id"
+                                           class="text-decoration-none text-dark d-block">@course.Codigo</a>
+                                </td>
+
+                                <td>@course.Nombre</td>
+                                        <td>@course.InstructorNombre</td>
+                                        <td>@course.CantidadEstudiantes</td>
+                                        <td>
+                                            <span class="badge @(course.Estado == "Activo" ? "bg-success" : "bg-secondary")">
+                                                @course.Estado
+                                            </span>
+                                        </td>
+                                
                                     <td class="text-end">
                                         <div class="btn-group" role="group">
                                             <button type="button" class="btn btn-sm btn-outline-primary"
@@ -128,4 +143,4 @@
             </div>
         </div>
     </div>
-}
+   

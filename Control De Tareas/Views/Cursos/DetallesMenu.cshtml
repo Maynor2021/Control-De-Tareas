@@ -1,0 +1,77 @@
+﻿@model Control_De_Tareas.Models.DetallesCursosVM
+
+@{
+    ViewData["Title"] = "Detalle del Curso";
+    Layout = "_Layout";  // Usa el layout normal
+}
+
+<div class="container mt-4">
+
+    <!-- Info principal -->
+    <div class="stat-description mb-4">
+
+        <p>@Model.descrption</p>
+    </div>
+
+    <h4 class="mb-3">Secciones del Curso</h4>
+
+    <!-- Agenda -->
+    <div class="menu-Item mb-3">
+        <a asp-action="Agenda" asp-controller="Cursos" asp-route-id="@Model.Id" class="text-decoration-none">
+            <h5>Agenda</h5>
+            <i class="bi bi-calendar-event fs-1 text-primary"></i>
+            <p class="text-muted">Calendario y eventos</p>
+            <span class="badge bg-secondary">@Model.TotalTareas elementos</span>
+        </a>
+    </div>
+
+    <!-- Documentos -->
+    <div class="menu-Item mb-3">
+        <a asp-action="Documentos" asp-controller="Cursos" asp-route-id="@Model.Id" class="text-decoration-none">
+            <h5>Documentos</h5>
+            <p class="text-muted">Material del curso</p>
+            <span class="badge bg-secondary">@Model.TotalDocumentos elementos</span>
+        </a>
+    </div>
+
+    <!-- Enlaces -->
+    <div class="menu-Item mb-3">
+        <a asp-action="Enlaces" asp-controller="Cursos" asp-route-id="@Model.Id" class="text-decoration-none">
+            <h5>Enlaces</h5>
+            <p class="text-muted">Sitios importantes</p>
+            <span class="badge bg-secondary">@Model.TotalEnlaces elementos</span>
+        </a>
+    </div>
+
+    <!-- Anuncios -->
+    <div class="menu-Item mb-3">
+        <a asp-action="Anuncios" asp-controller="Cursos" asp-route-id="@Model.Id" class="text-decoration-none">
+            <h5>Anuncios</h5>
+            <p class="text-muted">Novedades del curso</p>
+            <span class="badge bg-secondary">@Model.TotalAnuncios elementos</span>
+        </a>
+    </div>
+
+    <!-- Foros -->
+    <div class="menu-Item mb-3">
+        <a asp-action="Foros" asp-controller="Cursos" asp-route-id="@Model.Id" class="text-decoration-none">
+            <h5>Foros</h5>
+            <p class="text-muted">Discusión y preguntas</p>
+            <span class="badge bg-secondary">elementos</span>
+        </a>
+    </div>
+
+</div>
+
+<style>
+    .menu-Item {
+        background: #f7f7f7;
+        padding: 15px;
+        border-radius: 10px;
+        transition: 0.2s;
+    }
+
+        .menu-Item:hover {
+            background: #e9ecef;
+        }
+</style>

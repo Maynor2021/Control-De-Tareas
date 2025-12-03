@@ -1,4 +1,4 @@
-﻿@model Control_De_Tareas.Models.TareaCreateVm
+﻿@model Control_De_Tareas.Data.ViewModels.TareaCreateVm
 @{
     ViewData["Title"] = "Crear Tarea";
 }
@@ -10,6 +10,7 @@
 
     <div class="mb-3">
         <label asp-for="CourseOfferingId" class="form-label">Curso</label>
+       
         <select asp-for="CourseOfferingId" class="form-control" asp-items="ViewBag.CourseOfferings">
             <option value="">Seleccionar curso</option>
         </select>
