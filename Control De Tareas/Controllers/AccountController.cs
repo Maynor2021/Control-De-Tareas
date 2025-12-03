@@ -270,6 +270,109 @@ namespace Control_De_Tareas.Controllers
             }
         }
 
+        // METODO PARA CAMBIO DE CONTRASEÑA (SOLO USUARIOS LOGEADOS)
+        [HttpGet]
+        public IActionResult ChangePassword()
+        {
+            // Solo usuarios logueados pueden cambiar contraseña
+            if (!User.Identity?.IsAuthenticated == true)
+            {
+                return RedirectToAction("Login");
+            }
+
+            // Obtener email del usuario actual
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+            ViewBag.Email = userEmail;
+            ViewBag.Msg = TempData["Msg"];
+            ViewBag.Success = TempData["Success"];
+
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CambiarContraseña(string CurrentPassword, string Password, string ConfirmPassword)
+        {
+            // Solo usuarios logueados
+            if (!User.Identity?.IsAuthenticated == true)
+            {
+                return RedirectToAction("Login");
+            }
+
+            try
+            {
+                // 🔥 VALIDACIÓN EXTRA: Verificar que CurrentPassword no sea null
+                if (string.IsNullOrEmpty(CurrentPassword))
+                {
+                    TempData["Msg"] = "Debes ingresar tu contraseña actual";
+                    return RedirectToAction("ChangePassword");
+                }
+
+                // 1. Obtener usuario actual
+                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    TempData["Msg"] = "No se pudo identificar el usuario";
+                    return RedirectToAction("ChangePassword");
+                }
+
+                var user = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email == userEmail && u.IsSoftDeleted == false);
+
+                if (user == null)
+                {
+                    TempData["Msg"] = "Usuario no encontrado";
+                    return RedirectToAction("ChangePassword");
+                }
+
+                // 2. Verificar contraseña actual
+                string encryptedCurrentPassword = GetMD5(CurrentPassword);
+                if (user.PasswordHash.ToUpper() != encryptedCurrentPassword.ToUpper())
+                {
+                    TempData["Msg"] = "La contraseña actual es incorrecta";
+                    return RedirectToAction("ChangePassword");
+                }
+
+                // 3. Validar que las nuevas contraseñas coincidan
+                if (Password != ConfirmPassword)
+                {
+                    TempData["Msg"] = "Las nuevas contraseñas no coinciden";
+                    return RedirectToAction("ChangePassword");
+                }
+
+                // 4. Validar longitud mínima
+                if (string.IsNullOrEmpty(Password) || Password.Length < 6)
+                {
+                    TempData["Msg"] = "La nueva contraseña debe tener al menos 6 caracteres";
+                    return RedirectToAction("ChangePassword");
+                }
+
+                // 5. Encriptar la nueva contraseña con MD5
+                // Usa el mismo algoritmo que en el login
+                string encryptedPassword = GetMD5(Password);
+
+                // 6. Actualizar la contraseña
+                user.PasswordHash = encryptedPassword;
+                user.ModifieBy = user.UserId; // El usuario se modifica a sí mismo
+
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+
+                // 7. Cerrar sesión para que ingrese con la nueva contraseña
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                HttpContext.Session.Clear();
+
+                // 8. Mostrar mensaje de éxito
+                TempData["Success"] = "Contraseña cambiada exitosamente. Por favor, inicie sesión con su nueva contraseña.";
+                return RedirectToAction("Login");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cambiar contraseña");
+                TempData["Msg"] = "Error al cambiar la contraseña: " + ex.Message;
+                return RedirectToAction("ChangePassword");
+            }
+        }
+
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

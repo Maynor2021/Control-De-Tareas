@@ -87,22 +87,24 @@ namespace Control_De_Tareas.Controllers
             return RedirectToAction("Register", "Account");
         }
 
-        // Password Recovery
+        // Password Recovery - redirigir a Account
         public IActionResult PasswordRecovery()
         {
-            return View();
+            // Si no tienes esta funcionalidad, puedes comentarla o eliminar
+            return View(); // o return RedirectToAction("PasswordRecovery", "Account");
         }
 
-        // Code Verification
+        // Code Verification - redirigir a Account
         public IActionResult VerifyCode()
         {
-            return View();
+            // Si no tienes esta funcionalidad, puedes comentarla o eliminar
+            return View(); // o return RedirectToAction("VerifyCode", "Account");
         }
 
-        // Password Change
+        // Password Change - redirigir a Account
         public IActionResult ChangePassword()
         {
-            return View();
+            return RedirectToAction("ChangePassword", "Account");
         }
     }
 }
