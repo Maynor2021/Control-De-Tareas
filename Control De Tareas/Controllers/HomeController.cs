@@ -72,13 +72,19 @@ namespace Control_De_Tareas.Controllers
         [HttpGet]
         public IActionResult Login()
         {
-            // HttpContext.Session.Clear();  como evito entrar por URl aqui ya probe borrar las variables de sesion desde aqui pero sigue igual m, aunqye ya no me muesta infor , preguntar al ing
-
-            if (User.Identity?.IsAuthenticated == true) 
+            // Si ya está autenticado, redirigir al dashboard según rol
+            if (User.Identity?.IsAuthenticated == true)
             {
                 return RedirectToAction("Index");
             }
             return View();
+        }
+
+        [HttpGet]
+        public IActionResult Register()
+        {
+            // Redirigir al AccountController donde está el registro real
+            return RedirectToAction("Register", "Account");
         }
 
         // Password Recovery
