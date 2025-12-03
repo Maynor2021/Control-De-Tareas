@@ -6,10 +6,15 @@
 
 <h2>Editar tarea – @(course?.Course?.Description ?? "Curso")</h2>
 
+@* Mostrar resumen de validación *@
+@Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+
 <form asp-action="Editar" asp-route-id="@Model.Id" method="post" novalidate>
     @Html.AntiForgeryToken()
 
     <input type="hidden" asp-for="Id" />
+    @* IMPORTANTE: preservar CourseOfferingId para que el Bind lo reciba *@
+    <input type="hidden" asp-for="CourseOfferingId" />
 
     <div class="mb-3">
         <label asp-for="Title" class="form-label"></label>
@@ -25,8 +30,9 @@
 
     <div class="mb-3">
         <label asp-for="DueDate" class="form-label"></label>
+        @* Renderizar en hora local para evitar que el control datetime-local muestre una fecha pasada *@
         <input asp-for="DueDate" type="datetime-local" class="form-control"
-               value="@Model.DueDate.ToString("yyyy-MM-ddTHH:mm")" />
+               value="@Model.DueDate.ToLocalTime().ToString("yyyy-MM-ddTHH:mm")" />
         <span asp-validation-for="DueDate" class="text-danger"></span>
     </div>
 
@@ -36,15 +42,7 @@
         <span asp-validation-for="MaxScore" class="text-danger"></span>
     </div>
 
-    <!-- WORKAROUND:
-         Cambiamos a type="button" y forzamos el envío nativo con this.form.submit().
-         Esto suele saltarse handlers que interceptan el submit del botón.
-         Quitar este workaround una vez identificado/eliminado el script que bloquea el submit. -->
-    <button type="button"
-            class="btn btn-primary"
-            onclick="this.disabled=true; this.form.submit();">
-        Guardar cambios
-    </button>
+    <button type="submit" class="btn btn-primary">Guardar cambios</button>
 
     <a asp-action="Index" asp-route-courseOfferingId="@Model.CourseOfferingId" class="btn btn-secondary">Cancelar</a>
 </form>
@@ -54,6 +52,7 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
 }
+
 
 
 

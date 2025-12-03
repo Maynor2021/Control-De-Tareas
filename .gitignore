@@ -363,3 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 /Control De Tareas/appsettings.json
 
+# Ignorar configuraciones con secretos o específicas del entorno
+appsettings.Development.json
+appsettings.Local.json
+

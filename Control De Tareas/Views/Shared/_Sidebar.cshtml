@@ -4,18 +4,47 @@
 @using Control_De_Tareas.Services
 
 @{
-    // Diccionario de iconos por controlador/acción
-    var iconos = new Dictionary<string, string>
+    // Diccionario de iconos por controlador/acción (ordenado según el menú)
+    // Incluye claves para grupos y claves específicas por rol (ej: "Group/Usuarios/Profesor")
+    var iconos = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
+        // USUARIOS (default para grupo + override por rol)
+        { "Group/Usuarios/Profesor", "person" },   // PROFESOR verá "person"
+        { "Group/Usuarios", "people-fill" },       // DEFAULT para el grupo Usuarios (Admin y otros)
+        { "Home/Register", "person-plus" },        // Registrar Usuario
+        { "Home/PasswordRecovery", "shield-lock" },// Recuperar Contraseña
+        { "Home/ChangePassword", "key" },          // Cambiar Contraseña
+        { "Account/Logout", "box-arrow-right" },   // Cerrar Sesión
+        { "Account/Login", "box-arrow-in-right" }, // Login
+
+        // CURSOS
+        { "Cursos/Index", "book" },                    // Cursos Base
+        { "CourseOfferings/MisCursos", "collection" }, // Mis Cursos
+        { "CourseOfferings/Index", "collection" },     // Gestión de Ofertas
+        { "CourseOfferings/Inscripciones", "person-plus" }, // Inscripciones (Matrículas)
+
+        // DASHBOARDS (grupo con icono propio)
+        { "Group/Dashboards", "grid-3x3-gap" }, // icono del grupo Dashboards
+        { "Home/Privacy", "shield" },          // Política de Privacidad
+        { "Home/Index", "speedometer" },       // Dashboard Principal
+
+        // TAREAS
+        { "Tareas/Index", "clipboard-check" },     // Lista de Tareas
+        { "Tareas/Crear", "plus-square" },         // Crear Tarea
+        { "Tareas/TareasEstudiantes", "inbox" },   // Mis Tareas Estudiantes (Mis entregas)
+
+        // OTROS
         { "Dashboard/Index", "speedometer2" },
-        { "Cursos/Index", "book" },
-        { "Tareas/Index", "clipboard-check" },
         { "Grade/Index", "trophy" },
         { "Anuncios/Index", "megaphone" },
         { "Entregas/Index", "upload" },
+        { "Submissions/Index", "folder-check" },
         { "Grades/Index", "bar-chart" },
-        { "Usuarios/Index", "people" },
-        { "Audit/Index", "file-text" }
+        { "Usuarios/Index", "people-fill" },
+        { "Audit/Index", "file-text" },
+
+        // fallback
+        { "default", "circle" }
     };
 }
 
@@ -33,15 +62,15 @@
             var sesion = System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
             usuarioObjeto = JsonConvert.DeserializeObject<UserVm>(sesion);
         }
-        catch (Exception ex)
+        catch
         {
-            // Log error si es necesario
             usuarioObjeto = null;
         }
     }
 
-    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
-    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    var currentController = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "").Trim();
+    var currentAction = (ViewContext.RouteData.Values["action"]?.ToString() ?? "").Trim();
+    var roleName = (usuarioObjeto?.Rol?.Nombre ?? "").Trim();
 }
 
 @if (usuarioObjeto != null && usuarioObjeto.menu != null && usuarioObjeto.menu.Any())
@@ -67,6 +96,35 @@
             <ul class="nav flex-column">
                 @foreach (var menu in usuarioObjeto.menu)
                 {
+                    if (menu == null) { continue; }
+
+                    var descripcionGrupo = (menu.Descripcion ?? "").Trim();
+
+                    // ===========================
+                    // REGLAS DE VISIBILIDAD (según tus requerimientos)
+                    // 1) Admin NO debe ver TAREAS (grupo "Tareas")
+                    // 2) Profesor NO debe ver MIS ENTREGAS (grupo "Mis entregas")
+                    // 3) Profesor no puede crear cursos: ocultamos submódulos "Crear" dentro de Cursos
+                    // ===========================
+                    if (string.Equals(roleName, "Administrador", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // ocultar grupo "Tareas" para Admin
+                        if (string.Equals(descripcionGrupo, "Tareas", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (string.Equals(roleName, "Profesor", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // ocultar grupo "Mis entregas" para Profesor
+                        if (string.Equals(descripcionGrupo, "Mis entregas", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(descripcionGrupo, "Mis Entregas", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                    }
+
                     bool tiene_submenu = menu.Modulos != null && menu.Modulos.Count > 1;
 
                     if (tiene_submenu)
@@ -79,10 +137,21 @@
                                aria-expanded="false"
                                style="padding: 0.75rem 1rem; cursor: pointer;">
                                 @{
-                                    // Obtener el primer módulo para el icono del grupo
-                                    var primerModulo = menu.Modulos.First();
-                                    var claveGrupo = $"{primerModulo.Controlador}/{primerModulo.Metodo}";
-                                    var iconoGrupo = iconos.ContainsKey(claveGrupo) ? iconos[claveGrupo] : "folder";
+                                    // Obtener icono del grupo:
+                                    // Prioridad:
+                                    // 1) Group/<NombreGrupo>/<Rol>  (ej: Group/Usuarios/Profesor)
+                                    // 2) Group/<NombreGrupo>         (ej: Group/Usuarios)
+                                    // 3) icono del primer módulo    (ej: Home/Privacy)
+                                    // 4) fallback "folder"
+                                    var primerModulo = menu.Modulos.FirstOrDefault();
+                                    var claveGrupoPrimerModulo = primerModulo != null ? $"{primerModulo.Controlador}/{primerModulo.Metodo}" : "default";
+                                    var llaveGrupoRol = $"Group/{menu.Descripcion}/{roleName}";
+                                    var llaveGrupo = $"Group/{menu.Descripcion}";
+
+                                    var iconoGrupo =
+                                    iconos.ContainsKey(llaveGrupoRol) ? iconos[llaveGrupoRol]
+                                    : (iconos.ContainsKey(llaveGrupo) ? iconos[llaveGrupo]
+                                    : (iconos.ContainsKey(claveGrupoPrimerModulo) ? iconos[claveGrupoPrimerModulo] : "folder"));
                                 }
                                 <i class="bi bi-@iconoGrupo me-2" style="font-size: 1.1rem;"></i>
                                 <span class="menu-text">@menu.Descripcion</span>
@@ -90,19 +159,62 @@
 
                             <div class="collapse" id="submenu@(menu.GroupModuleId)">
                                 <ul class="submenu-list">
-                                    @foreach (var submenu in menu.Modulos)
+                                    @foreach (var submenu in menu.Modulos ?? Enumerable.Empty<dynamic>())
                                     {
-                                        var isActiveSubmenu = submenu.Controlador == currentController && submenu.Metodo == currentAction;
-                                        var clave = $"{submenu.Controlador}/{submenu.Metodo}";
-                                        var icono = iconos.ContainsKey(clave) ? iconos[clave] : "circle";
+                                        if (submenu == null) { continue; }
+
+                                        var subNombre = (submenu.Nombre ?? "").Trim();
+                                        var subControlador = (submenu.Controlador ?? "").Trim();
+                                        var subMetodo = (submenu.Metodo ?? "").Trim();
+
+                                        // ocultar "Cerrar Sesión" siempre
+                                        if (string.Equals(subNombre, "Cerrar Sesión", StringComparison.OrdinalIgnoreCase)
+                                        || (string.Equals(subControlador, "Account", StringComparison.OrdinalIgnoreCase) && string.Equals(subMetodo, "Logout", StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            continue;
+                                        }
+
+                                        // Reglas por rol: si Profesor y grupo Cursos, ocultar submódulos "Crear"
+                                        if (string.Equals(roleName, "Profesor", StringComparison.OrdinalIgnoreCase)
+                                        && string.Equals(descripcionGrupo, "Cursos", StringComparison.OrdinalIgnoreCase)
+                                        && subNombre.IndexOf("Crear", StringComparison.OrdinalIgnoreCase) >= 0)
+                                        {
+                                            continue;
+                                        }
+
+                                        // Si usuario es Administrador, ocultar submódulos específicos (compatibilidad)
+                                        if (string.Equals(roleName, "Administrador", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            var ocultarParaAdmin = new[] { "Inscripciones", "Mis Tareas Estudiantes", "Mis entregas", "Matrículas", "MisEntregas", "Entregas" };
+                                            if (ocultarParaAdmin.Any(n => string.Equals(n, subNombre, StringComparison.OrdinalIgnoreCase)))
+                                            {
+                                                continue;
+                                            }
+                                        }
+
+                                        // Si usuario es Profesor, ocultar "Mis Tareas Estudiantes" por seguridad extra
+                                        if (string.Equals(roleName, "Profesor", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            if (string.Equals(subNombre, "Mis Tareas Estudiantes", StringComparison.OrdinalIgnoreCase)
+                                            || string.Equals(subNombre, "Mis entregas", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                continue;
+                                            }
+                                        }
+
+                                        var isActiveSubmenu = string.Equals(subControlador, currentController, StringComparison.OrdinalIgnoreCase)
+                                        && string.Equals(subMetodo, currentAction, StringComparison.OrdinalIgnoreCase);
+
+                                        var clave = $"{subControlador}/{subMetodo}";
+                                        var icono = iconos.ContainsKey(clave) ? iconos[clave] : iconos["default"];
 
                                         <li>
                                             <a class="submenu-item @(isActiveSubmenu ? "active" : "")"
                                                asp-area=""
-                                               asp-controller="@submenu.Controlador"
-                                               asp-action="@submenu.Metodo">
+                                               asp-controller="@subControlador"
+                                               asp-action="@subMetodo">
                                                 <i class="bi bi-@icono me-2" style="font-size: 0.95rem;"></i>
-                                                <span class="menu-text">@submenu.Nombre</span>
+                                                <span class="menu-text">@subNombre</span>
                                             </a>
                                         </li>
                                     }
@@ -112,18 +224,51 @@
                     }
                     else if (menu.Modulos != null && menu.Modulos.Count == 1)
                     {
-                        <!-- Menú simple (un solo módulo) -->
-                        var modulo = menu.Modulos.First();
-                        var isActive = modulo.Controlador == currentController && modulo.Metodo == currentAction;
-                        var clave = $"{modulo.Controlador}/{modulo.Metodo}";
-                        var icono = iconos.ContainsKey(clave) ? iconos[clave] : "circle";
+                        // Menú simple (un solo módulo dentro del grupo)
+                        var modulo = menu.Modulos.FirstOrDefault();
+                        if (modulo == null) { continue; }
+
+                        var modNombre = (modulo.Nombre ?? "").Trim();
+                        var modControlador = (modulo.Controlador ?? "").Trim();
+                        var modMetodo = (modulo.Metodo ?? "").Trim();
+
+                        // ocultar "Cerrar Sesión" en menú simple
+                        if (string.Equals(modNombre, "Cerrar Sesión", StringComparison.OrdinalIgnoreCase)
+                        || (string.Equals(modControlador, "Account", StringComparison.OrdinalIgnoreCase) && string.Equals(modMetodo, "Logout", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            continue;
+                        }
+
+                        // Reglas: si Profesor y grupo Cursos, ocultar "Crear"
+                        if (string.Equals(roleName, "Profesor", StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(descripcionGrupo, "Cursos", StringComparison.OrdinalIgnoreCase)
+                        && modNombre.IndexOf("Crear", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            continue;
+                        }
+
+                        // Si usuario es Administrador, ocultar submódulos específicos también
+                        if (string.Equals(roleName, "Administrador", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var ocultar = new[] { "Inscripciones", "Mis Tareas Estudiantes", "Matrículas", "Mis entregas", "MisEntregas", "Entregas" };
+                            if (ocultar.Any(n => string.Equals(n, modNombre, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                continue;
+                            }
+                        }
+
+                        var isActive = string.Equals(modControlador, currentController, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(modMetodo, currentAction, StringComparison.OrdinalIgnoreCase);
+
+                        var claveMod = $"{modControlador}/{modMetodo}";
+                        var iconoMod = iconos.ContainsKey(claveMod) ? iconos[claveMod] : iconos["default"];
 
                         <li class="nav-item mb-2">
-                            <a asp-controller="@modulo.Controlador"
-                               asp-action="@modulo.Metodo"
+                            <a asp-controller="@modControlador"
+                               asp-action="@modMetodo"
                                class="nav-link d-flex align-items-center text-dark @(isActive ? "active" : "")"
                                style="padding: 0.75rem 1rem; border-left: 3px solid transparent; border-radius: 8px; @(isActive ? "border-left-color: #0d6efd; background-color: rgba(13, 110, 253, 0.1); font-weight: 500;" : "")">
-                                <i class="bi bi-@icono me-2" style="font-size: 1.1rem;"></i>
+                                <i class="bi bi-@iconoMod me-2" style="font-size: 1.1rem;"></i>
                                 <span class="menu-text">@menu.Descripcion</span>
                             </a>
                         </li>
@@ -195,10 +340,6 @@ else
             color: #0d6efd;
             border-left-color: #0d6efd;
             font-weight: 500;
-        }
-
-        .submenu-item i {
-            color: inherit;
         }
 
     /* Animación del dropdown toggle */
