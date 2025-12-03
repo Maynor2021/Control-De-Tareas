@@ -1,6 +1,7 @@
 ﻿using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,14 +45,16 @@ namespace Control_De_Tareas.Controllers
             return View(viewModel);
         }
 
-        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrador,Profesor")]
+        // ========== SOLO ADMIN PUEDE CREAR CURSOS ==========
+        [Authorize(Roles = "Administrador")]
         public IActionResult Crear()
         {
             return View();
         }
 
         [HttpPost]
-        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrador,Profesor")]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> Crear(string Codigo, string Nombre, string Descripcion)
         {
             if (string.IsNullOrEmpty(Codigo) || string.IsNullOrEmpty(Nombre))
@@ -77,6 +80,7 @@ namespace Control_De_Tareas.Controllers
             TempData["Success"] = "Curso creado exitosamente";
             return RedirectToAction(nameof(Index));
         }
+
         public IActionResult MenuDetalles(Guid id)
         {
             // cambio en la tabla de course and courseOffering a Guid insteaof indt
@@ -101,8 +105,6 @@ namespace Control_De_Tareas.Controllers
                 TotalTareas = _context.Tareas
                     .Count(t => t.CourseOfferingId == id),
 
-
-
                 TotalEnlaces = 1,
                 TotalAnuncios = 2,
             };
@@ -112,4 +114,3 @@ namespace Control_De_Tareas.Controllers
     }
 }
 
-    

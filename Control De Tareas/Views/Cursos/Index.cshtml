@@ -7,12 +7,8 @@
     Layout = "_Layout";
     ViewData["Title"] = "Gestión de Cursos";
 }
-{
 
-    var 
-}
 
-   
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col">
@@ -23,125 +19,132 @@
                     </h2>
                     <p class="text-muted mb-0">
                         @(User.IsInRole("Estudiante")
-                                                    ? "Cursos en los que estás inscrito"
-                                                    : "Administra los cursos de la plataforma")
+                                                ? "Cursos en los que estás inscrito"
+                                                : "Administra los cursos de la plataforma")
                     </p>
                 </div>
 
-                @if (User.IsInRole("Administrador") || User.IsInRole("Profesor"))
-                    {
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#crearCursoModal">
-                            <i class="fas fa-plus me-2"></i>
-                            Crear Curso
-                        </button>
-                    }
-                </div>
+                @if (User.IsInRole("Administrador"))
+                {
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#crearCursoModal">
+                        <i class="fas fa-plus me-2"></i>
+                        Crear Curso
+                    </button>
+                }
             </div>
         </div>
+    </div>
 
-        <!-- Card con tabla de cursos -->
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
-                <h5 class="card-title mb-0">Listado de Cursos</h5>
-                <button class="btnaccordion-button">Crear curso</button>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Código</th>
-                                <th>Nombre</th>
-                                <th>Instructor</th>
-                                <th>Estudiantes</th>
-                                <th>Estado</th>
-                                <th class="text-end">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var course in Model.Cursos)
-                            {
-                               <tr class="cursor-pointer" style="cursor:pointer">
+    <!-- Card con tabla de cursos -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">Listado de Cursos</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Instructor</th>
+                            <th>Estudiantes</th>
+                            <th>Estado</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var course in Model.Cursos)
+                        {
+                            <tr class="cursor-pointer" style="cursor:pointer">
                                 <td>
                                     <a asp-action="MenuDetalles" asp-controller="Cursos" asp-route-id="@course.Id"
-                                           class="text-decoration-none text-dark d-block">@course.Codigo</a>
+                                       class="text-decoration-none text-dark d-block">@course.Codigo</a>
                                 </td>
 
                                 <td>@course.Nombre</td>
-                                        <td>@course.InstructorNombre</td>
-                                        <td>@course.CantidadEstudiantes</td>
-                                        <td>
-                                            <span class="badge @(course.Estado == "Activo" ? "bg-success" : "bg-secondary")">
-                                                @course.Estado
-                                            </span>
-                                        </td>
-                                
-                                    <td class="text-end">
+                                <td>@course.InstructorNombre</td>
+                                <td>@course.CantidadEstudiantes</td>
+                                <td>
+                                    <span class="badge @(course.Estado == "Activo" ? "bg-success" : "bg-secondary")">
+                                        @course.Estado
+                                    </span>
+                                </td>
 
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-sm btn-outline-primary"
-                                                    onclick="event.stopPropagation(); viewCourse('@course.Id')">
-                                                <i class="fas fa-eye"></i>
+                                <td class="text-end">
+
+                                    <div class="btn-group" role="group">
+                                        <!-- Ver: disponible para todos (Admin, Profesor, Estudiante según permisos de ruta) -->
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                onclick="event.stopPropagation(); viewCourse('@course.Id')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+
+                                        <!-- Editar: SOLO Administrador -->
+                                        @if (User.IsInRole("Administrador"))
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                    onclick="event.stopPropagation(); editCourse('@course.Id')">
+                                                <i class="fas fa-edit"></i>
                                             </button>
+                                        }
 
-                                            @if (User.IsInRole("Administrador") || User.IsInRole("Profesor"))
-                                            {
-                                                <button type="button" class="btn btn-sm btn-outline-secondary"
-                                                        onclick="event.stopPropagation(); editCourse('@course.Id')">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-sm btn-outline-danger"
-                                                        onclick="event.stopPropagation(); deleteCourse('@course.Id')">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            }
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                                        <!-- Eliminar: SOLO Administrador -->
+                                        @if (User.IsInRole("Administrador"))
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    onclick="event.stopPropagation(); deleteCourse('@course.Id')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Modal para Crear Curso -->
-    <div class="modal fade" id="crearCursoModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Crear Nuevo Curso</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form asp-action="Crear" method="post">
-                    <div class="modal-body">
-                        <p class="text-muted">Completa la información del nuevo curso</p>
+<!-- Modal para Crear Curso -->
+<div class="modal fade" id="crearCursoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Crear Nuevo Curso</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="Crear" method="post">
+                <div class="modal-body">
+                    <p class="text-muted">Completa la información del nuevo curso</p>
 
-                        <div class="mb-3">
-                            <label for="Codigo" class="form-label">Código del Curso</label>
-                            <input type="text" class="form-control" id="Codigo" name="Codigo"
-                                   placeholder="Ej: PROG-101" required>
-                        </div>
+                    <div class="mb-3">
+                        <label for="Codigo" class="form-label">Código del Curso</label>
+                        <input type="text" class="form-control" id="Codigo" name="Codigo"
+                               placeholder="Ej: PROG-101" required>
+                    </div>
 
-                        <div class="mb-3">
-                            <label for="Nombre" class="form-label">Nombre del Curso</label>
-                            <input type="text" class="form-control" id="Nombre" name="Nombre"
-                                   placeholder="Ej: Programación I" required>
-                        </div>
+                    <div class="mb-3">
+                        <label for="Nombre" class="form-label">Nombre del Curso</label>
+                        <input type="text" class="form-control" id="Nombre" name="Nombre"
+                               placeholder="Ej: Programación I" required>
+                    </div>
 
-                        <div class="mb-3">
-                            <label for="Descripcion" class="form-label">Descripción</label>
-                            <textarea class="form-control" id="Descripcion" name="Descripcion"
+                    <div class="mb-3">
+                        <label for="Descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="Descripcion" name="Descripcion"
                                   rows="3" placeholder="Descripción del curso"></textarea>
-                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Crear Curso</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Curso</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
+
    
