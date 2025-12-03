@@ -67,7 +67,7 @@ namespace Control_De_Tareas.Controllers
 
             usersV.PasswordHash = GetMD5(usersV.PasswordHash);
 
-            if (user.PasswordHash != usersV.PasswordHash)
+            if (user.PasswordHash.ToUpper() != usersV.PasswordHash.ToUpper()) ///para no tener prolemas aqui 
             {
                 ViewBag.Error = "Usuario o contraseña incorrectos";
                 return View(new UserVm());
