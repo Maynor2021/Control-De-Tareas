@@ -14,7 +14,7 @@
     </div>
 
     <h4 class="mb-3">Secciones del Curso</h4>
-
+    <div class="sections-grid">
     <!-- Agenda -->
     <div class="menu-Item mb-3">
         <a asp-action="Agenda" asp-controller="Cursos" asp-route-id="@Model.Id" class="text-decoration-none">
@@ -28,7 +28,7 @@
     <!-- Documentos -->
     <div class="menu-Item mb-3">
         <a asp-action="Documentos" asp-controller="Cursos" asp-route-id="@Model.Id" class="text-decoration-none">
-            <h5>Documentos</h5>
+			<h5>Documentos</h5><a href="d:\user\desktop\control-de-tareas\control de tareas\views\cursos\detallesmenu.cshtml">d:\user\desktop\control-de-tareas\control de tareas\views\cursos\detallesmenu.cshtml</a>
             <p class="text-muted">Material del curso</p>
             <span class="badge bg-secondary">@Model.TotalDocumentos elementos</span>
         </a>
@@ -60,14 +60,21 @@
             <span class="badge bg-secondary">elementos</span>
         </a>
     </div>
-
+   </div>
 </div>
 
 <style>
+    .sections-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+    }
+
     .menu-Item {
+       
         background: #f7f7f7;
         padding: 15px;
-        border-radius: 10px;
+        border-radius: 20px;
         transition: 0.2s;
     }
 
