@@ -7,7 +7,7 @@
 <h2>@(course != null ? "Tareas - " + (course.Course?.Description ?? "Curso") : "Tareas")</h2>
 
 <p>
-    @if (User.IsInRole("Administrador"))
+    @if (User.IsInRole("Profesor"))
     {
         <a asp-action="Crear" class="btn btn-primary">Crear nueva tarea</a>
     }
@@ -33,7 +33,7 @@
                 <td>@t.MaxScore</td>
                 <td>
                     <a asp-action="Detalle" asp-route-id="@t.Id" class="btn btn-sm btn-outline-primary">Ver</a>
-                    @if (User.IsInRole("Administrador"))
+                    @if (User.IsInRole("Profesor"))
                     {
                         <a asp-action="Editar" asp-route-id="@t.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
                         <a asp-action="Delete" asp-route-id="@t.Id" class="btn btn-sm btn-outline-danger">Eliminar</a>
