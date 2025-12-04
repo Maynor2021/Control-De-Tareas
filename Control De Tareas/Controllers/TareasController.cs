@@ -22,6 +22,7 @@ namespace Control_De_Tareas.Controllers
             _logger = logger;
         }
 
+        // ========================= LISTADO GENERAL =========================
         public async Task<IActionResult> Index()
         {
             var tareas = await _context.Tareas
@@ -35,8 +36,7 @@ namespace Control_De_Tareas.Controllers
             return View(tareas);
         }
 
-        // ---------- CREATE ----------
-        // Ahora accesible por Profesor y Administrador
+        // ========================= CREAR =========================
         [Authorize(Roles = "Profesor,Administrador")]
         public async Task<IActionResult> Crear()
         {
@@ -109,7 +109,7 @@ namespace Control_De_Tareas.Controllers
             }
         }
 
-        // ---------- DETAILS ----------
+        // ========================= DETALLE (✅ S3-12 SEGURIDAD TOTAL) =========================
         [Authorize(Roles = "Administrador,Profesor,Estudiante")]
         public async Task<IActionResult> Detalle(Guid id)
         {
@@ -124,13 +124,29 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
+            // ✅ S3-12 VALIDACIÓN DE SEGURIDAD POR INSCRIPCIÓN
             if (User.IsInRole("Estudiante"))
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
                 if (Guid.TryParse(userId, out var studentId))
                 {
+                    var tieneAcceso = await _context.Enrollments
+                        .AnyAsync(e =>
+                            e.StudentId == studentId &&
+                            e.CourseOfferingId == tarea.CourseOfferingId &&
+                            e.Status == "Active" &&
+                            !e.IsSoftDeleted);
+
+                    if (!tieneAcceso)
+                    {
+                        // ❌ ACCESO BLOQUEADO SI INTENTA ENTRAR A TAREA DE OTRO CURSO
+                        return Forbid(); // 403
+                    }
+
                     var submission = await _context.Submissions
                         .FirstOrDefaultAsync(s => s.TaskId == id && s.StudentId == studentId);
+
                     ViewBag.Submission = submission;
                 }
             }
@@ -139,6 +155,7 @@ namespace Control_De_Tareas.Controllers
             {
                 var totalEntregas = await _context.Submissions
                     .CountAsync(s => s.TaskId == id && !s.IsSoftDeleted);
+
                 var entregasCalificadas = await _context.Submissions
                     .CountAsync(s => s.TaskId == id && s.CurrentGrade.HasValue && !s.IsSoftDeleted);
 
@@ -149,7 +166,7 @@ namespace Control_De_Tareas.Controllers
             return View(tarea);
         }
 
-        // ---------- EDIT (GET) ----------
+        // ========================= EDITAR =========================
         [Authorize(Roles = "Profesor,Administrador")]
         public async Task<IActionResult> Editar(Guid id)
         {
@@ -166,21 +183,18 @@ namespace Control_De_Tareas.Controllers
             return View(tarea);
         }
 
-        // ---------- EDIT (POST) ----------
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Profesor,Administrador")]
         public async Task<IActionResult> Editar(Guid id, [Bind("Id,CourseOfferingId,Title,Description,DueDate,MaxScore")] Tareas model)
         {
-            // LOG: registra cuando el POST se invoca (útil para verificar si la petición llega al servidor)
-            _logger.LogInformation("👉 POST Editar invocado | ID={Id} | Usuario={User}", id, User?.Identity?.Name);
+            _logger.LogInformation("POST Editar invocado | ID={Id}", id);
 
             if (id == Guid.Empty || model == null || id != model.Id)
             {
                 return BadRequest();
             }
 
-            // Validaciones servidor
             if (string.IsNullOrWhiteSpace(model.Title))
                 ModelState.AddModelError(nameof(model.Title), "El título es obligatorio.");
 
@@ -189,7 +203,6 @@ namespace Control_De_Tareas.Controllers
 
             if (!ModelState.IsValid)
             {
-                // volver a cargar datos necesarios para la vista
                 var co = await _context.CourseOfferings.AsNoTracking()
                     .FirstOrDefaultAsync(c => c.Id == model.CourseOfferingId);
                 ViewBag.CourseOffering = co;
@@ -202,7 +215,6 @@ namespace Control_De_Tareas.Controllers
                 if (tarea == null)
                     return NotFound();
 
-                // Actualizar sólo campos permitidos
                 tarea.Title = model.Title;
                 tarea.Description = model.Description;
                 tarea.DueDate = model.DueDate;
@@ -214,35 +226,21 @@ namespace Control_De_Tareas.Controllers
                 TempData["Success"] = "Tarea actualizada correctamente.";
                 return RedirectToAction(nameof(Index));
             }
-            catch (DbUpdateConcurrencyException dex)
-            {
-                _logger.LogError(dex, "Concurrency error editando tarea {Id}", id);
-                ModelState.AddModelError("", "La tarea fue modificada por otro usuario. Intenta de nuevo.");
-                var co = await _context.CourseOfferings.AsNoTracking()
-                    .FirstOrDefaultAsync(c => c.Id == model.CourseOfferingId);
-                ViewBag.CourseOffering = co;
-                return View(model);
-            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error editando tarea {Id}", id);
+                _logger.LogError(ex, "Error editando tarea");
                 ModelState.AddModelError("", "Ocurrió un error al editar la tarea.");
-                var co = await _context.CourseOfferings.AsNoTracking()
-                    .FirstOrDefaultAsync(c => c.Id == model.CourseOfferingId);
-                ViewBag.CourseOffering = co;
                 return View(model);
             }
         }
 
-
-
-        // ---------- DELETE (GET) ----------
+        // ========================= DELETE =========================
         [Authorize(Roles = "Profesor,Administrador")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var tarea = await _context.Tareas
                 .Include(t => t.CourseOffering)
-                    .ThenInclude(co => co.Course)
+                .ThenInclude(co => co.Course)
                 .FirstOrDefaultAsync(t => t.Id == id && !t.IsSoftDeleted);
 
             if (tarea == null)
@@ -253,7 +251,6 @@ namespace Control_De_Tareas.Controllers
             return View(tarea);
         }
 
-        // ---------- DELETE (POST) ----------
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Profesor,Administrador")]
@@ -270,7 +267,7 @@ namespace Control_De_Tareas.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // ---------- TAREAS PARA ESTUDIANTES ----------
+        // ========================= TAREAS PARA ESTUDIANTES =========================
         [Authorize(Policy = "Estudiante")]
         public async Task<IActionResult> TareasEstudiantes()
         {
@@ -300,6 +297,7 @@ namespace Control_De_Tareas.Controllers
             return View(tareasConSubmissions);
         }
 
+        // ========================= HELPERS =========================
         private async Task LoadCourseOfferingsAsync()
         {
             var courseOfferings = await _context.CourseOfferings
@@ -316,4 +314,3 @@ namespace Control_De_Tareas.Controllers
         }
     }
 }
-
