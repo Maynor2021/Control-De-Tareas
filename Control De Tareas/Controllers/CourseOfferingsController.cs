@@ -1,7 +1,9 @@
 ﻿using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
+using Control_De_Tareas.Services;
 using Microsoft.AspNetCore.Http;
+using System.IO;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +15,13 @@ namespace Control_De_Tareas.Controllers
     {
         private readonly ContextDB _context;
         private readonly ILogger<CourseOfferingsController> _logger;
+        private readonly IFileStorageService _fileStorageService;
 
-        public CourseOfferingsController(ContextDB context, ILogger<CourseOfferingsController> logger)
+        public CourseOfferingsController(ContextDB context, ILogger<CourseOfferingsController> logger, IFileStorageService fileStorageService)
         {
             _context = context;
             _logger = logger;
+            _fileStorageService = fileStorageService;
         }
 
         // GET: CourseOfferings/ListadoOfertas
@@ -630,6 +634,178 @@ namespace Control_De_Tareas.Controllers
                     Selected = model != null && p.Id == model.PeriodId
                 })
                 .ToListAsync();
+        }
+     
+
+        // GET: CourseOfferings/Documentos/{id}
+        public IActionResult Documentos(Guid id)
+        {
+            // Limpiar mensajes antiguos
+            TempData.Remove("Success");
+            TempData.Remove("Error");
+            var courseOffering = _context.CourseOfferings
+                .Include(c => c.Course)
+                .FirstOrDefault(c => c.Id == id);
+
+            if (courseOffering == null)
+            {
+                return NotFound();
+            }
+
+            // Obtener lista de archivos del sistema de archivos
+            var documents = _fileStorageService.GetCourseDocuments(id);
+
+            ViewBag.CourseOfferingId = id;
+            ViewBag.CourseName = courseOffering.Course?.Title ?? "Sin nombre";
+            ViewBag.UserRole = GetCurrentUserRole();
+
+            return View(documents);
+        }
+
+        // POST: CourseOfferings/UploadDocument
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadDocument(Guid courseOfferingId, IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                TempData["Error"] = "Debe seleccionar un archivo.";
+                return RedirectToAction("Documentos", new { id = courseOfferingId });
+            }
+
+            // Validar archivo
+            if (!_fileStorageService.ValidateFile(file, out string errorMessage))
+            {
+                TempData["Error"] = errorMessage;
+                return RedirectToAction("Documentos", new { id = courseOfferingId });
+            }
+
+            try
+            {
+                // Generar nombre único
+                string extension = Path.GetExtension(file.FileName);
+                long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                string sanitizedFileName = Path.GetFileNameWithoutExtension(file.FileName)
+                    .Replace(" ", "_")
+                    .Replace("(", "")
+                    .Replace(")", "");
+                string uniqueFileName = $"{timestamp}_{sanitizedFileName}{extension}";
+
+                // Guardar archivo
+                await _fileStorageService.SaveCourseDocumentAsync(file, courseOfferingId, uniqueFileName);
+
+                TempData["Success"] = $"Documento '{file.FileName}' subido exitosamente.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error subiendo documento para curso {CourseOfferingId}", courseOfferingId);
+                TempData["Error"] = "Error al subir el archivo.";
+            }
+
+            return RedirectToAction("Documentos", new { id = courseOfferingId });
+        }
+
+        // GET: CourseOfferings/DownloadDocument
+        public IActionResult DownloadDocument(Guid courseOfferingId, string fileName)
+        {
+            try
+            {
+                var filePath = _fileStorageService.GetCourseDocumentPath(courseOfferingId, fileName);
+
+                if (!System.IO.File.Exists(filePath))
+                {
+                    TempData["Error"] = "El archivo no existe.";
+                    return RedirectToAction("Documentos", new { id = courseOfferingId });
+                }
+
+                var memory = new MemoryStream();
+                using (var stream = new FileStream(filePath, FileMode.Open))
+                {
+                    stream.CopyTo(memory);
+                }
+                memory.Position = 0;
+
+                // Obtener el nombre original del archivo (sin timestamp)
+                var parts = fileName.Split('_', 2);
+                var originalFileName = parts.Length > 1 ? parts[1] : fileName;
+
+                return File(memory, GetContentType(filePath), originalFileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error descargando documento {FileName}", fileName);
+                TempData["Error"] = "Error al descargar el archivo.";
+                return RedirectToAction("Documentos", new { id = courseOfferingId });
+            }
+        }
+
+        // POST: CourseOfferings/DeleteDocument
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DeleteDocument(Guid courseOfferingId, string fileName)
+        {
+            try
+            {
+                bool deleted = _fileStorageService.DeleteCourseDocument(courseOfferingId, fileName);
+
+                if (deleted)
+                {
+                    TempData["Success"] = "Documento eliminado exitosamente.";
+                }
+                else
+                {
+                    TempData["Error"] = "No se pudo eliminar el archivo.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error eliminando documento {FileName}", fileName);
+                TempData["Error"] = "Error al eliminar el archivo.";
+            }
+
+            return RedirectToAction("Documentos", new { id = courseOfferingId });
+        }
+
+        private string GetCurrentUserRole()
+        {
+            var sesionBase64 = HttpContext.Session.GetString("UserSession");
+            if (string.IsNullOrEmpty(sesionBase64))
+                return null;
+
+            try
+            {
+                var base64EncodedBytes = System.Convert.FromBase64String(sesionBase64);
+                var sesion = System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
+                var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserVm>(sesion);
+                return userInfo?.Rol?.Nombre;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private string GetContentType(string path)
+        {
+            var types = new Dictionary<string, string>
+    {
+        {".pdf", "application/pdf"},
+        {".doc", "application/msword"},
+        {".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+        {".xls", "application/vnd.ms-excel"},
+        {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+        {".ppt", "application/vnd.ms-powerpoint"},
+        {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+        {".png", "image/png"},
+        {".jpg", "image/jpeg"},
+        {".jpeg", "image/jpeg"},
+        {".gif", "image/gif"},
+        {".txt", "text/plain"},
+        {".zip", "application/zip"}
+    };
+
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            return types.ContainsKey(ext) ? types[ext] : "application/octet-stream";
         }
     }
 }

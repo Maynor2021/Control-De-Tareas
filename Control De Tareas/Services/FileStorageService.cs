@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using Control_De_Tareas.Configurations;
 
@@ -82,6 +83,58 @@ namespace Control_De_Tareas.Services
             }
 
             return filePath;
+        }
+
+       
+
+        public async Task<string> SaveCourseDocumentAsync(IFormFile file, Guid courseOfferingId, string uniqueFileName)
+        {
+            var folderPath = Path.Combine(_baseUploadPath, $"course_{courseOfferingId}", "documents");
+
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+
+            var filePath = Path.Combine(folderPath, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            return filePath;
+        }
+
+        public List<FileInfo> GetCourseDocuments(Guid courseOfferingId)
+        {
+            var folderPath = Path.Combine(_baseUploadPath, $"course_{courseOfferingId}", "documents");
+
+            if (!Directory.Exists(folderPath))
+            {
+                return new List<FileInfo>();
+            }
+
+            var directory = new DirectoryInfo(folderPath);
+            return directory.GetFiles().OrderByDescending(f => f.CreationTime).ToList();
+        }
+
+        public bool DeleteCourseDocument(Guid courseOfferingId, string fileName)
+        {
+            var filePath = Path.Combine(_baseUploadPath, $"course_{courseOfferingId}", "documents", fileName);
+
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+                return true;
+            }
+
+            return false;
+        }
+
+        public string GetCourseDocumentPath(Guid courseOfferingId, string fileName)
+        {
+            return Path.Combine(_baseUploadPath, $"course_{courseOfferingId}", "documents", fileName);
         }
     }
 }
