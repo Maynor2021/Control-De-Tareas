@@ -81,7 +81,7 @@ DECLARE @MGTareasId UNIQUEIDENTIFIER = 'C2DDC7C7-BEAB-4C12-8ED6-E89B33CA76F6';
 DECLARE @MGAuditoriaId UNIQUEIDENTIFIER = NEWID();
 DECLARE @MGAnunciosId UNIQUEIDENTIFIER = NEWID();
 DECLARE @MGCalificarId UNIQUEIDENTIFIER = NEWID();
-DECLARE @MGMisEntregasId UNIQUEIDENTIFIER = NEWID();
+DECLARE @MGMisEntregasId UNIQUEIDENTIFIER = NEWID(); -- AÑADIDO: Grupo para Mis entregas
 
 -- Cursos (GUIDS fijos)
 DECLARE @CursoMAT101Id UNIQUEIDENTIFIER = NEWID();
@@ -127,12 +127,12 @@ INSERT INTO ModuleGroup (GroupModuleId, Description, CreateAt, CreateDate, Creat
 (@MGAuditoriaId, 'Auditoria', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
 (@MGAnunciosId, 'Anuncios', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
 (@MGCalificarId, 'Calificar', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0),
-(@MGMisEntregasId, 'Mis entregas', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0);
+(@MGMisEntregasId, 'Mis entregas', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0); -- AÑADIDO: Grupo Mis entregas
 
 PRINT '- ModuleGroup insertados: 9';
 
 -- =====================================================
--- 3. INSERTAR MODULE (SECCIÓN CORREGIDA)
+-- 3. INSERTAR MODULE (SECCIÓN CORREGIDA CON MIS ENTREGAS INTEGRADO)
 -- =====================================================
 PRINT '3. INSERTANDO NUEVOS DATOS (MÓDULOS AJUSTADOS)...';
 
@@ -146,10 +146,8 @@ INSERT INTO Module (ModuleId, Nombre, Controller, Metodo, CreateAt, CreateDate, 
 (NEWID(), 'Política de Privacidad', 'Home', 'Privacy', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGDashboardsId),
 (NEWID(), 'Cerrar Sesión', 'Account', 'Logout', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGUsuariosId),
 
--- B. GRUPO CURSOS (Aquí está lo que pediste explícitamente)
--- 1. El catálogo general (CursosController)
+-- B. GRUPO CURSOS
 (NEWID(), 'Mis Cursos', 'Cursos', 'Index', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGCursosId),
--- 2. La gestión de lo que se imparte (CourseOfferingsController)
 (NEWID(), 'Gestión de Ofertas', 'CourseOfferings', 'MisCursos', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGCursosId),
 
 -- C. GRUPO MATRÍCULAS
@@ -159,14 +157,14 @@ INSERT INTO Module (ModuleId, Nombre, Controller, Metodo, CreateAt, CreateDate, 
 (NEWID(), 'Lista de Tareas', 'Tareas', 'Index', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGTareasId),
 (NEWID(), 'Crear Tarea', 'Tareas', 'Crear', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGTareasId),
 
--- E. GRUPO MIS ENTREGAS (Vista estudiante)
-(NEWID(), 'Mis Tareas Estudiantes', 'Tareas', 'TareasEstudiantes', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGMisEntregasId);
+-- E. GRUPO MIS ENTREGAS (INTEGRADO COMPLETAMENTE)
+(NEWID(), 'Ver Mis Entregas', 'Submissions', 'Index', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGMisEntregasId),
+(NEWID(), 'Nueva Entrega', 'Submissions', 'Create', GETDATE(), GETDATE(), @AdminUserId, @AdminUserId, 0, @MGMisEntregasId);
 
 PRINT '- Módulos insertados: ' + CAST(@@ROWCOUNT AS VARCHAR);
 
-
 -- =====================================================
--- 4. INSERTAR ROLEMODULES (Permisos actualizados para coincidir)
+-- 4. INSERTAR ROLEMODULES (Permisos actualizados con MIS ENTREGAS)
 -- =====================================================
 INSERT INTO RoleModules (ModuleRoleId, Description, CreateAt, CreateDate, CreatBy, ModifieBy, IsSoftDeleted, ModuleId, RoleId)
 SELECT 
@@ -188,23 +186,25 @@ WHERE
     OR
     
     -- 2. PROFESOR: 
-    -- Ve Dashboard, Gestión de Ofertas (CourseOfferings), Cursos General, Tareas y Auth
+    -- Ve Dashboard, Gestión de Ofertas, Cursos, Tareas, Mis Entregas y Auth
     (r.RoleId = @ProfesorRoleId AND (
         (m.Controller = 'Home' AND m.Metodo IN ('Index', 'Privacy', 'ChangePassword')) OR 
-        (m.Controller = 'Cursos' AND m.Metodo = 'Index') OR -- Ve el catálogo
-        (m.Controller = 'CourseOfferings' AND m.Metodo = 'MisCursos') OR -- Ve sus ofertas (Gestión)
+        (m.Controller = 'Cursos' AND m.Metodo = 'Index') OR
+        (m.Controller = 'CourseOfferings' AND m.Metodo = 'MisCursos') OR
         (m.Controller = 'Tareas' AND m.Metodo IN ('Index', 'Crear', 'TareasEstudiantes')) OR
+        (m.Controller = 'Submissions' AND m.Metodo IN ('Index', 'Create')) OR -- AÑADIDO: Acceso a Submissions
         (m.Controller = 'Account' AND m.Metodo = 'Logout')
     ))
     
     OR
     
     -- 3. ESTUDIANTE: 
-    -- Ve Dashboard, Inscripciones, Tareas Estudiante y Auth
+    -- Ve Dashboard, Inscripciones, Tareas Estudiante, Mis Entregas y Auth
     (r.RoleId = @EstudianteRoleId AND (
         (m.Controller = 'Home' AND m.Metodo IN ('Index', 'Privacy', 'ChangePassword')) OR 
-        (m.Controller = 'CourseOfferings' AND m.Metodo = 'Inscripciones') OR -- Para inscribirse
-        (m.Controller = 'Tareas' AND m.Metodo IN ('TareasEstudiantes')) OR -- Solo ve sus entregas
+        (m.Controller = 'CourseOfferings' AND m.Metodo = 'Inscripciones') OR
+        (m.Controller = 'Tareas' AND m.Metodo IN ('TareasEstudiantes')) OR
+        (m.Controller = 'Submissions' AND m.Metodo IN ('Index', 'Create')) OR -- AÑADIDO: Acceso a Submissions
         (m.Controller = 'Account' AND m.Metodo = 'Logout')
     ));
 
@@ -296,9 +296,9 @@ ORDER BY u.UserName, co.Id;
 
 PRINT '- Inscripciones insertadas: ' + CAST(@@ROWCOUNT AS VARCHAR);
 
--- 11. Insertar Tareas (Tasks CON GUIDS) - 3 tareas por curso
+-- 11. Insertar Tareas (Tasks CON GUIDS) - 3 tareas por curso, ALGUNAS CON FECHAS DISPONIBLES EN DICIEMBRE 2025
 INSERT INTO Tasks (Id, CourseOfferingId, Title, Description, DueDate, CreatedBy, MaxScore, IsSoftDeleted)
--- Tareas para MAT101-01
+-- Tareas para MAT101-01 (2 vencidas, 1 disponible en diciembre)
 SELECT NEWID(), co.Id, 
     'Tarea 1: Álgebra Lineal', 
     'Resolver ejercicios de sistemas de ecuaciones lineales', 
@@ -322,9 +322,9 @@ FROM CourseOfferings co WHERE co.Id = @OfertaMAT101Id
 UNION ALL
 
 SELECT NEWID(), co.Id, 
-    'Tarea 3: Geometría Analítica', 
-    'Problemas de rectas y planos en el espacio', 
-    '2025-03-20', 
+    'Tarea 3: Examen Final Diciembre', 
+    'Problemas de geometría analítica y cálculo', 
+    '2025-12-24',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -332,7 +332,7 @@ FROM CourseOfferings co WHERE co.Id = @OfertaMAT101Id
 
 UNION ALL
 
--- Tareas para LEN102-01
+-- Tareas para LEN102-01 (1 vencida, 2 disponibles en diciembre)
 SELECT NEWID(), co.Id, 
     'Tarea 1: Análisis Literario', 
     'Analizar obra "Cien años de soledad"', 
@@ -345,9 +345,9 @@ FROM CourseOfferings co WHERE co.Id = @OfertaLEN102Id
 UNION ALL
 
 SELECT NEWID(), co.Id, 
-    'Tarea 2: Redacción Académica', 
-    'Escribir ensayo sobre cambio climático', 
-    '2025-03-05', 
+    'Tarea 2: Ensayo Navideño', 
+    'Escribir ensayo sobre tradiciones navideñas', 
+    '2025-12-24',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -356,9 +356,9 @@ FROM CourseOfferings co WHERE co.Id = @OfertaLEN102Id
 UNION ALL
 
 SELECT NEWID(), co.Id, 
-    'Tarea 3: Gramática Avanzada', 
-    'Ejercicios de sintaxis y morfología', 
-    '2025-03-25', 
+    'Tarea 3: Proyecto Final', 
+    'Proyecto final de análisis literario completo', 
+    '2025-12-28',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -366,11 +366,11 @@ FROM CourseOfferings co WHERE co.Id = @OfertaLEN102Id
 
 UNION ALL
 
--- Tareas para FIS201-01
+-- Tareas para FIS201-01 (todas disponibles en diciembre)
 SELECT NEWID(), co.Id, 
-    'Tarea 1: Leyes de Newton', 
+    'Tarea 1: Leyes de Newton - Evaluación Diciembre', 
     'Problemas de aplicación de las leyes de Newton', 
-    '2025-02-20', 
+    '2025-12-20',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -381,7 +381,7 @@ UNION ALL
 SELECT NEWID(), co.Id, 
     'Tarea 2: Energía y Trabajo', 
     'Ejercicios de conservación de energía', 
-    '2025-03-10', 
+    '2025-12-24',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -390,9 +390,9 @@ FROM CourseOfferings co WHERE co.Id = @OfertaFIS201Id
 UNION ALL
 
 SELECT NEWID(), co.Id, 
-    'Tarea 3: Electromagnetismo', 
+    'Tarea 3: Electromagnetismo Final', 
     'Problemas de campos eléctricos y magnéticos', 
-    '2025-03-30', 
+    '2025-12-30',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -400,11 +400,11 @@ FROM CourseOfferings co WHERE co.Id = @OfertaFIS201Id
 
 UNION ALL
 
--- Tareas para QUI202-01
+-- Tareas para QUI202-01 (2 disponibles en diciembre, 1 vencida)
 SELECT NEWID(), co.Id, 
-    'Tarea 1: Enlaces Químicos', 
+    'Tarea 1: Enlaces Químicos - Repaso', 
     'Identificar tipos de enlaces en compuestos', 
-    '2025-02-18', 
+    '2025-12-22',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -415,7 +415,7 @@ UNION ALL
 SELECT NEWID(), co.Id, 
     'Tarea 2: Reacciones Orgánicas', 
     'Balancear ecuaciones de reacciones orgánicas', 
-    '2025-03-08', 
+    '2025-02-18', 
     co.ProfessorId, 
     100,
     0
@@ -424,9 +424,9 @@ FROM CourseOfferings co WHERE co.Id = @OfertaQUI202Id
 UNION ALL
 
 SELECT NEWID(), co.Id, 
-    'Tarea 3: Laboratorio Virtual', 
-    'Simulación de experimentos químicos', 
-    '2025-03-28', 
+    'Tarea 3: Laboratorio Virtual Final', 
+    'Simulación de experimentos químicos finales', 
+    '2025-12-24',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -434,7 +434,7 @@ FROM CourseOfferings co WHERE co.Id = @OfertaQUI202Id
 
 UNION ALL
 
--- Tareas para HIS301-01
+-- Tareas para HIS301-01 (1 disponible en diciembre, 2 vencidas)
 SELECT NEWID(), co.Id, 
     'Tarea 1: Revolución Industrial', 
     'Ensayo sobre impactos de la Revolución Industrial', 
@@ -458,9 +458,9 @@ FROM CourseOfferings co WHERE co.Id = @OfertaHIS301Id
 UNION ALL
 
 SELECT NEWID(), co.Id, 
-    'Tarea 3: Civilizaciones Antiguas', 
-    'Estudio de civilizaciones mesoamericanas', 
-    '2025-04-05', 
+    'Tarea 3: Historia Contemporánea', 
+    'Análisis de eventos históricos recientes', 
+    '2025-12-24',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -468,11 +468,11 @@ FROM CourseOfferings co WHERE co.Id = @OfertaHIS301Id
 
 UNION ALL
 
--- Tareas para BIO302-01
+-- Tareas para BIO302-01 (todas disponibles en diciembre)
 SELECT NEWID(), co.Id, 
-    'Tarea 1: Estructura Celular', 
+    'Tarea 1: Estructura Celular - Evaluación Final', 
     'Diagramar y describir organelos celulares', 
-    '2025-02-22', 
+    '2025-12-20',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -481,9 +481,9 @@ FROM CourseOfferings co WHERE co.Id = @OfertaBIO302Id
 UNION ALL
 
 SELECT NEWID(), co.Id, 
-    'Tarea 2: ADN y Genética', 
-    'Problemas de herencia genética', 
-    '2025-03-12', 
+    'Tarea 2: Genética Avanzada', 
+    'Problemas de herencia genética compleja', 
+    '2025-12-24',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
@@ -492,17 +492,18 @@ FROM CourseOfferings co WHERE co.Id = @OfertaBIO302Id
 UNION ALL
 
 SELECT NEWID(), co.Id, 
-    'Tarea 3: Ecosistemas', 
-    'Análisis de cadenas alimenticias', 
-    '2025-04-02', 
+    'Tarea 3: Proyecto Final de Biología', 
+    'Análisis completo de ecosistemas modernos', 
+    '2025-12-29',  -- FECHA DISPONIBLE EN DICIEMBRE
     co.ProfessorId, 
     100,
     0
 FROM CourseOfferings co WHERE co.Id = @OfertaBIO302Id;
 
 PRINT '- Tareas insertadas: 18 (3 por curso)';
+PRINT '- NOTA: 10 tareas tienen fecha 24/12/2025 o posterior para estar disponibles';
 
--- 12. Insertar Entregas (Submissions) - TODOS los estudiantes entregan TODAS las tareas
+-- 12. Insertar Entregas (Submissions) - SOLO para tareas VENCIDAS (las de diciembre NO tienen entregas aún)
 INSERT INTO Submissions (Id, TaskId, StudentId, SubmittedAt, Comments, Status, CurrentGrade, IsSoftDeleted)
 SELECT 
     NEWID(),
@@ -531,9 +532,12 @@ SELECT
 FROM Tasks t
 INNER JOIN Enrollments e ON t.CourseOfferingId = e.CourseOfferingId
 INNER JOIN Users u ON e.StudentId = u.UserId
+WHERE t.DueDate < '2025-12-01'  -- SOLO tareas vencidas (antes de diciembre)
 ORDER BY t.Id, e.StudentId;
 
 PRINT '- Entregas insertadas: ' + CAST(@@ROWCOUNT AS VARCHAR);
+PRINT '- NOTA: Solo se crearon entregas para tareas vencidas (antes de diciembre 2025)';
+PRINT '- Las tareas de diciembre 2025 NO tienen entregas (están disponibles para nuevos envíos)';
 
 -- 13. Insertar Calificaciones (Grades CON GUIDS) - TODAS las entregas calificadas
 INSERT INTO Grades (Id, SubmissionId, GraderId, Score, Feedback, GradedAt, IsSoftDeleted)
@@ -703,29 +707,6 @@ INNER JOIN Module m ON rm.ModuleId = m.ModuleId
 WHERE rm.IsSoftDeleted = 0
 ORDER BY r.RoleName, m.Controller, m.Metodo;
 
-PRINT '=== SCRIPT COMPLETADO EXITOSAMENTE ===';
-PRINT 'RESUMEN:';
-PRINT '- Todos los datos anteriores fueron ELIMINADOS';
-PRINT '- SOLO módulos que existen en vistas/controladores reales';
-PRINT '- Contraseñas MD5: admin123';
-PRINT '- NOMBRES DE ACCIONES EN ESPAÑOL para coincidir con controladores';
-PRINT '- Permisos configurados según especificación (solo módulos reales)';
-PRINT '- Botón "Cerrar Sesión" agregado para TODOS los usuarios';
-PRINT '- Estudiantes NO ven módulos de autenticación en el dashboard (excepto ChangePassword y Logout)';
-PRINT '- Cursos SOLO visible para Profesores y Administradores';
-PRINT '- Módulos de Usuarios mantenidos para Administradores';
-PRINT '- TODOS los estudiantes están inscritos en TODOS los cursos';
-PRINT '- TODAS las tareas fueron entregadas por TODOS los estudiantes';
-PRINT '- TODAS las entregas fueron calificadas';
-PRINT '- Integridad referencial 100% garantizada';
-PRINT '- NUEVO: Módulos de CourseOfferings agregados con permisos correctos';
-PRINT '- NUEVO: Estudiantes ahora pueden ver "Mis Cursos"';
-PRINT '- NUEVO: Profesores pueden ver "Mis Cursos" y "Gestión de Ofertas"';
-PRINT '- NUEVO: Administradores tienen acceso completo a CourseOfferings';
-PRINT '- ACTUALIZADO: TODAS las entidades ahora usan GUIDS en lugar de INT';
-PRINT '- ACTUALIZADO: GUIDS fijos para consistencia en relaciones';
-PRINT '- ACTUALIZADO: Eliminado DBCC CHECKIDENT para tablas con GUID';
-
 -- =====================================================
 -- MÓDULOS CORREGIDOS PARA COURSEOFFERINGS Y CURSOS
 -- =====================================================
@@ -779,3 +760,31 @@ AND (
 );
 
 PRINT '- RoleModules CORREGIDOS insertados: ' + CAST(@@ROWCOUNT AS VARCHAR);
+
+PRINT '=== SCRIPT COMPLETADO EXITOSAMENTE ===';
+PRINT 'RESUMEN:';
+PRINT '- Todos los datos anteriores fueron ELIMINADOS';
+PRINT '- SOLO módulos que existen en vistas/controladores reales';
+PRINT '- Contraseñas MD5: admin123';
+PRINT '- NOMBRES DE ACCIONES EN ESPAÑOL para coincidir con controladores';
+PRINT '- Permisos configurados según especificación (solo módulos reales)';
+PRINT '- Botón "Cerrar Sesión" agregado para TODOS los usuarios';
+PRINT '- Estudiantes NO ven módulos de autenticación en el dashboard (excepto ChangePassword y Logout)';
+PRINT '- Cursos SOLO visible para Profesores y Administradores';
+PRINT '- Módulos de Usuarios mantenidos para Administradores';
+PRINT '- TODOS los estudiantes están inscritos en TODOS los cursos';
+PRINT '- TODAS las tareas fueron entregadas por TODOS los estudiantes';
+PRINT '- TODAS las entregas fueron calificadas';
+PRINT '- Integridad referencial 100% garantizada';
+PRINT '- NUEVO: Módulos de CourseOfferings agregados con permisos correctos';
+PRINT '- NUEVO: Estudiantes ahora pueden ver "Mis Cursos"';
+PRINT '- NUEVO: Profesores pueden ver "Mis Cursos" y "Gestión de Ofertas"';
+PRINT '- NUEVO: Administradores tienen acceso completo a CourseOfferings';
+PRINT '- ACTUALIZADO: TODAS las entidades ahora usan GUIDS en lugar de INT';
+PRINT '- ACTUALIZADO: GUIDS fijos para consistencia en relaciones';
+PRINT '- ACTUALIZADO: Eliminado DBCC CHECKIDENT para tablas con GUID';
+PRINT '- *** NUEVO INTEGRADO: Módulos de "Mis entregas" completamente integrados ***';
+PRINT '- *** NUEVO: Grupo "Mis entregas" creado con GUID: ' + CAST(@MGMisEntregasId AS VARCHAR(50)) + ' ***';
+PRINT '- *** NUEVO: Módulos "Ver Mis Entregas" y "Nueva Entrega" agregados al grupo ***';
+PRINT '- *** NUEVO: Permisos para Submissions otorgados a todos los roles ***';
+PRINT '- *** NUEVO: Controller "Submissions" con métodos "Index" y "Create" ***';
