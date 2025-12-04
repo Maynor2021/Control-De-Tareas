@@ -94,6 +94,62 @@ namespace Control_De_Tareas.Controllers
             ViewBag.UserRole = userRole;
             return View(models);
         }
+        // GET: CourseOfferings/CursosDisponibles
+        public async Task<IActionResult> CursosDisponibles()
+        {
+            // Verificar que sea estudiante
+            if (!IsEstudianteFromSession())
+            {
+                TempData["Error"] = "Solo los estudiantes pueden ver cursos disponibles";
+                return RedirectToAction("MisCursos");
+            }
+
+            var currentUserId = GetCurrentUserId();
+
+            // 1. Obtener IDs de cursos donde ya está inscrito
+            var enrolledCourseIds = await _context.Enrollments
+                .Where(e => e.StudentId == currentUserId && !e.IsSoftDeleted)
+                .Select(e => e.CourseOfferingId)
+                .ToListAsync();
+
+            // 2. Obtener ofertas disponibles (activas, período vigente, no inscrito)
+            var offerings = await _context.CourseOfferings
+                .Where(co => !co.IsSoftDeleted &&
+                           co.IsActive &&
+                           !enrolledCourseIds.Contains(co.Id) &&
+                           co.Period.EndDate >= DateTime.Now.Date && // Período aún no termina
+                           co.Period.StartDate <= DateTime.Now.Date) // Período ya inició o está en curso
+                .Include(co => co.Course)
+                .Include(co => co.Professor)
+                .Include(co => co.Period)
+                .Include(co => co.Enrollments)
+                .OrderByDescending(co => co.Period.StartDate) // Más recientes primero
+                .ThenBy(co => co.Course.Title)
+                .ThenBy(co => co.Section)
+                .ToListAsync();
+
+            // 3. Mapear a ViewModel
+            var models = offerings.Select(co => new CourseOfferingVm
+            {
+                Id = co.Id,
+                CourseId = co.CourseId,
+                CourseName = co.Course?.Title ?? "Sin nombre",
+                CourseCode = co.Course?.Code ?? "",
+                ProfessorName = co.Professor?.UserName ?? "Sin asignar",
+                ProfessorEmail = co.Professor?.Email ?? "",
+                PeriodName = co.Period?.Name ?? "Sin período",
+                Section = co.Section,
+                PeriodStartDate = co.Period?.StartDate,
+                PeriodEndDate = co.Period?.EndDate,
+                EnrolledStudentsCount = co.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0,
+                TasksCount = co.Tareas?.Count(t => !t.IsSoftDeleted) ?? 0,
+                IsActive = co.IsActive,
+                CreatedAt = co.CreatedAt
+            }).ToList();
+
+            ViewBag.UserRole = "Estudiante";
+            return View(models);
+        }
 
         // GET: CourseOfferings/ListadoOfertas
         public async Task<IActionResult> ListadoOfertas(Guid? periodId)
