@@ -3,6 +3,8 @@
     ViewData["Title"] = "Gestión de Inscripciones";
     var enrolledStudents = ViewBag.EnrolledStudents as List<Control_De_Tareas.Models.EnrollmentVm> ?? new List<Control_De_Tareas.Models.EnrollmentVm>();
     var availableStudents = ViewBag.AvailableStudents as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+    var userRole = ViewBag.UserRole as string ?? "Profesor";
+    var isAdmin = userRole == "Administrador";
 }
 
 <div class="container-fluid">
@@ -16,10 +18,34 @@
                 @Model.CourseName - @Model.Section | @Model.PeriodName
             </p>
         </div>
-        <a href="@Url.Action("MisCursos", "CourseOfferings")" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Volver a Mis Cursos
-        </a>
+        <div>
+            <a href="@Url.Action("Details", "CourseOfferings", new { id = Model.Id })" class="btn btn-outline-info me-2">
+                <i class="bi bi-eye"></i> Ver Curso
+            </a>
+            <a href="@Url.Action("MisCursos", "CourseOfferings")" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
     </div>
+
+    <!-- Mensajes -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i>
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
 
     <div class="row">
         <!-- Estudiantes Inscritos -->
@@ -166,7 +192,28 @@
                         <dd class="col-sm-7">
                             <span class="badge bg-primary">@Model.EnrolledStudentsCount</span>
                         </dd>
+
+                        <dt class="col-sm-5">Estado:</dt>
+                        <dd class="col-sm-7">
+                            @if (Model.IsActive)
+                            {
+                                <span class="badge bg-success">Activo</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactivo</span>
+                            }
+                        </dd>
                     </dl>
+                </div>
+                <div class="card-footer bg-transparent">
+                    @if (isAdmin)
+                    {
+                        <a href="@Url.Action("Edit", "CourseOfferings", new { id = Model.Id })" 
+                           class="btn btn-warning btn-sm w-100">
+                            <i class="bi bi-pencil"></i> Editar Curso
+                        </a>
+                    }
                 </div>
             </div>
         </div>
@@ -176,15 +223,18 @@
 @section Scripts {
     <script>
         // Buscar estudiantes en el dropdown
-        document.querySelector('select[name="studentId"]').addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            const options = e.target.options;
+        const studentSelect = document.querySelector('select[name="studentId"]');
+        if (studentSelect) {
+            studentSelect.addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                const options = e.target.options;
 
-            for (let i = 0; i < options.length; i++) {
-                const option = options[i];
-                const text = option.text.toLowerCase();
-                option.style.display = text.includes(searchTerm) ? '' : 'none';
-            }
-        });
+                for (let i = 0; i < options.length; i++) {
+                    const option = options[i];
+                    const text = option.text.toLowerCase();
+                    option.style.display = text.includes(searchTerm) ? '' : 'none';
+                }
+            });
+        }
     </script>
 }

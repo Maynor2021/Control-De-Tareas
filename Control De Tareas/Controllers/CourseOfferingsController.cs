@@ -25,8 +25,15 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: CourseOfferings/ListadoOfertas
-        public async Task<IActionResult> ListadoOfertas(Guid? periodId) // CAMBIADO de int? a Guid?
+        public async Task<IActionResult> ListadoOfertas(Guid? periodId)
         {
+            // Verificar si es administrador
+            if (!IsAdmin())
+            {
+                TempData["Error"] = "No tiene permisos para acceder a esta página";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
             var query = _context.CourseOfferings
                 .Where(co => !co.IsSoftDeleted)
                 .Include(co => co.Course)
@@ -56,16 +63,16 @@ namespace Control_De_Tareas.Controllers
                 Section = co.Section,
                 CreatedAt = co.CreatedAt,
                 IsActive = co.IsActive,
-                CourseName = co.Course.Title,
-                CourseCode = co.Course.Code ?? "",
-                ProfessorName = co.Professor.UserName,
-                ProfessorEmail = co.Professor.Email,
-                PeriodName = co.Period.Name,
-                PeriodStartDate = co.Period.StartDate,
-                PeriodEndDate = co.Period.EndDate,
-                EnrolledStudentsCount = co.Enrollments.Count(e => !e.IsSoftDeleted),
-                TasksCount = co.Tareas.Count(t => !t.IsSoftDeleted),
-                AnnouncementsCount = co.Announcements.Count(a => !a.IsSoftDeleted)
+                CourseName = co.Course?.Title ?? "Sin nombre",
+                CourseCode = co.Course?.Code ?? "",
+                ProfessorName = co.Professor?.UserName ?? "Sin asignar",
+                ProfessorEmail = co.Professor?.Email ?? "",
+                PeriodName = co.Period?.Name ?? "Sin período",
+                PeriodStartDate = co.Period?.StartDate,
+                PeriodEndDate = co.Period?.EndDate,
+                EnrolledStudentsCount = co.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0,
+                TasksCount = co.Tareas?.Count(t => !t.IsSoftDeleted) ?? 0,
+                AnnouncementsCount = co.Announcements?.Count(a => !a.IsSoftDeleted) ?? 0
             }).ToList();
 
             ViewBag.Periods = await _context.Periods
@@ -80,17 +87,22 @@ namespace Control_De_Tareas.Controllers
                 .ToListAsync();
 
             ViewBag.SelectedPeriodId = periodId;
+            ViewBag.UserRole = GetCurrentUserRole();
             return View(models);
         }
 
         // GET: CourseOfferings/Index/5
-        public async Task<IActionResult> Index(Guid? id) // CAMBIADO de int? a Guid?
+        public async Task<IActionResult> Index(Guid? id)
         {
             if (id == null)
             {
                 return RedirectToAction(nameof(MisCursos));
             }
 
+            // Verificar permisos - Solo admin o profesor del curso
+            var userRole = GetCurrentUserRole();
+            var userId = GetCurrentUserId();
+            
             var offering = await _context.CourseOfferings
                 .Include(co => co.Course)
                 .Include(co => co.Professor)
@@ -104,33 +116,39 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
+            // Verificar si el usuario tiene acceso
+            if (userRole != "Administrador" && offering.ProfessorId != userId)
+            {
+                TempData["Error"] = "No tiene permisos para gestionar este curso";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
             var model = new CourseOfferingVm
             {
                 Id = offering.Id,
-                CourseName = offering.Course.Title,
-                CourseCode = offering.Course.Code ?? "",
-                ProfessorName = offering.Professor.UserName,
-                PeriodName = offering.Period.Name,
+                CourseName = offering.Course?.Title ?? "Sin nombre",
+                CourseCode = offering.Course?.Code ?? "",
+                ProfessorName = offering.Professor?.UserName ?? "Sin asignar",
+                PeriodName = offering.Period?.Name ?? "Sin período",
                 Section = offering.Section,
-                EnrolledStudentsCount = offering.Enrollments.Count(e => !e.IsSoftDeleted)
+                EnrolledStudentsCount = offering.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0
             };
 
-            // En el método Index del CourseOfferingsController:
             ViewBag.EnrolledStudents = offering.Enrollments
                 .Where(e => !e.IsSoftDeleted)
                 .Select(e => new EnrollmentVm
                 {
-                    Id = e.Id, // ← Ya usa Guid
-                    CourseOfferingId = e.CourseOfferingId, // ← Ya usa Guid
+                    Id = e.Id,
+                    CourseOfferingId = e.CourseOfferingId,
                     StudentId = e.StudentId,
-                    StudentName = e.Student.UserName,
-                    StudentEmail = e.Student.Email,
+                    StudentName = e.Student?.UserName ?? "Sin nombre",
+                    StudentEmail = e.Student?.Email ?? "",
                     EnrolledAt = e.EnrolledAt,
                     Status = e.Status,
-                    CourseName = offering.Course.Title,
-                    CourseCode = offering.Course.Code ?? "",
-                    ProfessorName = offering.Professor.UserName,
-                    PeriodName = offering.Period.Name,
+                    CourseName = offering.Course?.Title ?? "",
+                    CourseCode = offering.Course?.Code ?? "",
+                    ProfessorName = offering.Professor?.UserName ?? "",
+                    PeriodName = offering.Period?.Name ?? "",
                     Section = offering.Section
                 })
                 .OrderBy(s => s.StudentName)
@@ -153,6 +171,7 @@ namespace Control_De_Tareas.Controllers
                 })
                 .ToListAsync();
 
+            ViewBag.UserRole = userRole;
             return View(model);
         }
 
@@ -168,6 +187,12 @@ namespace Control_De_Tareas.Controllers
             var userJson = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(userSession));
             var user = JsonSerializer.Deserialize<UserVm>(userJson);
 
+            // Si es administrador, redirigir a ListadoOfertas
+            if (IsAdminFromSession())
+            {
+                return RedirectToAction(nameof(ListadoOfertas));
+            }
+
             var query = _context.CourseOfferings
                 .Where(co => !co.IsSoftDeleted && co.IsActive)
                 .Include(co => co.Course)
@@ -178,30 +203,17 @@ namespace Control_De_Tareas.Controllers
                 .AsQueryable();
 
             string userRole = "Estudiante";
-            if (user.Rol != null)
+            var currentUserId = GetCurrentUserId();
+            
+            if (IsProfesorFromSession())
             {
-                var roleProperty = user.Rol.GetType().GetProperty("RoleName");
-                if (roleProperty != null)
-                {
-                    userRole = roleProperty.GetValue(user.Rol)?.ToString() ?? "Estudiante";
-                }
-                else
-                {
-                    var nombreProperty = user.Rol.GetType().GetProperty("Nombre");
-                    if (nombreProperty != null)
-                    {
-                        userRole = nombreProperty.GetValue(user.Rol)?.ToString() ?? "Estudiante";
-                    }
-                }
+                userRole = "Profesor";
+                query = query.Where(co => co.ProfessorId == currentUserId);
             }
-
-            if (userRole == "Profesor")
+            else if (IsEstudianteFromSession())
             {
-                query = query.Where(co => co.ProfessorId == user.UserId);
-            }
-            else if (userRole == "Estudiante")
-            {
-                query = query.Where(co => co.Enrollments.Any(e => e.StudentId == user.UserId && !e.IsSoftDeleted));
+                userRole = "Estudiante";
+                query = query.Where(co => co.Enrollments.Any(e => e.StudentId == currentUserId && !e.IsSoftDeleted));
             }
 
             var offerings = await query
@@ -213,15 +225,15 @@ namespace Control_De_Tareas.Controllers
             {
                 Id = co.Id,
                 CourseId = co.CourseId,
-                CourseName = co.Course.Title,
-                CourseCode = co.Course.Code ?? "",
-                ProfessorName = co.Professor.UserName,
-                PeriodName = co.Period.Name,
+                CourseName = co.Course?.Title ?? "Sin nombre",
+                CourseCode = co.Course?.Code ?? "",
+                ProfessorName = co.Professor?.UserName ?? "Sin asignar",
+                PeriodName = co.Period?.Name ?? "Sin período",
                 Section = co.Section,
-                PeriodStartDate = co.Period.StartDate,
-                PeriodEndDate = co.Period.EndDate,
-                EnrolledStudentsCount = co.Enrollments.Count(e => !e.IsSoftDeleted),
-                TasksCount = co.Tareas.Count(t => !t.IsSoftDeleted),
+                PeriodStartDate = co.Period?.StartDate,
+                PeriodEndDate = co.Period?.EndDate,
+                EnrolledStudentsCount = co.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0,
+                TasksCount = co.Tareas?.Count(t => !t.IsSoftDeleted) ?? 0,
                 IsActive = co.IsActive
             }).ToList();
 
@@ -230,7 +242,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: CourseOfferings/Details/5
-        public async Task<IActionResult> Details(Guid? id) // CAMBIADO de int? a Guid?
+        public async Task<IActionResult> Details(Guid? id)
         {
             if (id == null) return NotFound();
 
@@ -245,6 +257,28 @@ namespace Control_De_Tareas.Controllers
 
             if (offering == null) return NotFound();
 
+            // Verificar permisos
+            var userRole = GetCurrentUserRole();
+            var userId = GetCurrentUserId();
+            
+            if (userRole == "Estudiante")
+            {
+                // Verificar si el estudiante está inscrito
+                var isEnrolled = offering.Enrollments?
+                    .Any(e => e.StudentId == userId && !e.IsSoftDeleted) ?? false;
+                
+                if (!isEnrolled)
+                {
+                    TempData["Error"] = "No tienes acceso a este curso";
+                    return RedirectToAction(nameof(MisCursos));
+                }
+            }
+            else if (userRole == "Profesor" && offering.ProfessorId != userId)
+            {
+                TempData["Error"] = "No tienes permisos para ver este curso";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
             var model = new CourseOfferingVm
             {
                 Id = offering.Id,
@@ -254,25 +288,35 @@ namespace Control_De_Tareas.Controllers
                 Section = offering.Section,
                 CreatedAt = offering.CreatedAt,
                 IsActive = offering.IsActive,
-                CourseName = offering.Course.Title,
-                CourseCode = offering.Course.Code ?? "",
-                ProfessorName = offering.Professor.UserName,
-                ProfessorEmail = offering.Professor.Email,
-                PeriodName = offering.Period.Name,
-                PeriodStartDate = offering.Period.StartDate,
-                PeriodEndDate = offering.Period.EndDate,
-                EnrolledStudentsCount = offering.Enrollments.Count(e => !e.IsSoftDeleted),
-                TasksCount = offering.Tareas.Count(t => !t.IsSoftDeleted),
-                AnnouncementsCount = offering.Announcements.Count(a => !a.IsSoftDeleted)
+                CourseName = offering.Course?.Title ?? "Sin nombre",
+                CourseCode = offering.Course?.Code ?? "",
+                ProfessorName = offering.Professor?.UserName ?? "Sin asignar",
+                ProfessorEmail = offering.Professor?.Email ?? "",
+                PeriodName = offering.Period?.Name ?? "Sin período",
+                PeriodStartDate = offering.Period?.StartDate,
+                PeriodEndDate = offering.Period?.EndDate,
+                EnrolledStudentsCount = offering.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0,
+                TasksCount = offering.Tareas?.Count(t => !t.IsSoftDeleted) ?? 0,
+                AnnouncementsCount = offering.Announcements?.Count(a => !a.IsSoftDeleted) ?? 0
             };
 
+            ViewBag.UserRole = userRole;
+            ViewBag.IsProfesor = (userRole == "Profesor" && offering.ProfessorId == userId) || userRole == "Administrador";
+            ViewBag.IsAdmin = userRole == "Administrador";
             return View(model);
         }
 
         // GET: CourseOfferings/Create
         public async Task<IActionResult> Create()
         {
+            if (!IsAdmin())
+            {
+                TempData["Error"] = "Solo los administradores pueden crear ofertas";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
             await LoadDropdownsAsync();
+            ViewBag.UserRole = "Administrador";
             return View(new CourseOfferingVm());
         }
 
@@ -281,9 +325,16 @@ namespace Control_De_Tareas.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CourseOfferingVm model)
         {
+            if (!IsAdmin())
+            {
+                TempData["Error"] = "Solo los administradores pueden crear ofertas";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadDropdownsAsync();
+                ViewBag.UserRole = "Administrador";
                 return View(model);
             }
 
@@ -297,12 +348,13 @@ namespace Control_De_Tareas.Controllers
             {
                 ModelState.AddModelError("", "Ya existe una oferta para este curso, período y sección.");
                 await LoadDropdownsAsync();
+                ViewBag.UserRole = "Administrador";
                 return View(model);
             }
 
             var offering = new CourseOfferings
             {
-                Id = Guid.NewGuid(), // AGREGAR ESTA LÍNEA
+                Id = Guid.NewGuid(),
                 CourseId = model.CourseId,
                 ProfessorId = model.ProfessorId,
                 PeriodId = model.PeriodId,
@@ -320,9 +372,15 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: CourseOfferings/Edit/5
-        public async Task<IActionResult> Edit(Guid? id) // CAMBIADO de int? a Guid?
+        public async Task<IActionResult> Edit(Guid? id)
         {
             if (id == null) return NotFound();
+
+            if (!IsAdmin())
+            {
+                TempData["Error"] = "Solo los administradores pueden editar ofertas";
+                return RedirectToAction(nameof(MisCursos));
+            }
 
             var offering = await _context.CourseOfferings
                 .FirstOrDefaultAsync(co => co.Id == id && !co.IsSoftDeleted);
@@ -341,19 +399,27 @@ namespace Control_De_Tareas.Controllers
             };
 
             await LoadDropdownsAsync(model);
+            ViewBag.UserRole = "Administrador";
             return View(model);
         }
 
         // POST: CourseOfferings/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Guid id, CourseOfferingVm model) // CAMBIADO de int a Guid
+        public async Task<IActionResult> Edit(Guid id, CourseOfferingVm model)
         {
+            if (!IsAdmin())
+            {
+                TempData["Error"] = "Solo los administradores pueden editar ofertas";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
             if (id != model.Id) return NotFound();
 
             if (!ModelState.IsValid)
             {
                 await LoadDropdownsAsync(model);
+                ViewBag.UserRole = "Administrador";
                 return View(model);
             }
 
@@ -373,6 +439,7 @@ namespace Control_De_Tareas.Controllers
             {
                 ModelState.AddModelError("", "Ya existe otra oferta para este curso, período y sección.");
                 await LoadDropdownsAsync(model);
+                ViewBag.UserRole = "Administrador";
                 return View(model);
             }
 
@@ -389,9 +456,15 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: CourseOfferings/Delete/5
-        public async Task<IActionResult> Delete(Guid? id) // CAMBIADO de int? a Guid?
+        public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null) return NotFound();
+
+            if (!IsAdmin())
+            {
+                TempData["Error"] = "Solo los administradores pueden eliminar ofertas";
+                return RedirectToAction(nameof(MisCursos));
+            }
 
             var offering = await _context.CourseOfferings
                 .Include(co => co.Course)
@@ -405,21 +478,28 @@ namespace Control_De_Tareas.Controllers
             var model = new CourseOfferingVm
             {
                 Id = offering.Id,
-                CourseName = offering.Course.Title,
-                ProfessorName = offering.Professor.UserName,
-                PeriodName = offering.Period.Name,
+                CourseName = offering.Course?.Title ?? "Sin nombre",
+                ProfessorName = offering.Professor?.UserName ?? "Sin asignar",
+                PeriodName = offering.Period?.Name ?? "Sin período",
                 Section = offering.Section,
-                EnrolledStudentsCount = offering.Enrollments.Count(e => !e.IsSoftDeleted)
+                EnrolledStudentsCount = offering.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0
             };
 
+            ViewBag.UserRole = "Administrador";
             return View(model);
         }
 
         // POST: CourseOfferings/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(Guid id) // CAMBIADO de int a Guid
+        public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
+            if (!IsAdmin())
+            {
+                TempData["Error"] = "Solo los administradores pueden eliminar ofertas";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
             var offering = await _context.CourseOfferings
                 .Include(co => co.Enrollments)
                 .FirstOrDefaultAsync(co => co.Id == id && !co.IsSoftDeleted);
@@ -444,10 +524,29 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/InscribirEstudiante
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> InscribirEstudiante(Guid courseOfferingId, Guid studentId) // CAMBIADO de int a Guid
+        public async Task<IActionResult> InscribirEstudiante(Guid courseOfferingId, Guid studentId)
         {
             try
             {
+                // Verificar permisos - Solo admin o profesor del curso
+                var userRole = GetCurrentUserRole();
+                var userId = GetCurrentUserId();
+                
+                var offering = await _context.CourseOfferings
+                    .FirstOrDefaultAsync(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
+                
+                if (offering == null)
+                {
+                    TempData["Error"] = "No se encontró la oferta de curso";
+                    return RedirectToAction(nameof(MisCursos));
+                }
+
+                if (userRole != "Administrador" && offering.ProfessorId != userId)
+                {
+                    TempData["Error"] = "No tiene permisos para inscribir estudiantes en este curso";
+                    return RedirectToAction(nameof(MisCursos));
+                }
+
                 var existingEnrollment = await _context.Enrollments
                     .FirstOrDefaultAsync(e => e.CourseOfferingId == courseOfferingId &&
                                              e.StudentId == studentId &&
@@ -461,7 +560,7 @@ namespace Control_De_Tareas.Controllers
 
                 var enrollment = new Enrollments
                 {
-                    Id = Guid.NewGuid(), // AGREGAR ESTA LÍNEA
+                    Id = Guid.NewGuid(),
                     CourseOfferingId = courseOfferingId,
                     StudentId = studentId,
                     EnrolledAt = DateTime.Now,
@@ -486,10 +585,29 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/DesinscribirEstudiante
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DesinscribirEstudiante(Guid courseOfferingId, Guid studentId) // CAMBIADO de int a Guid
+        public async Task<IActionResult> DesinscribirEstudiante(Guid courseOfferingId, Guid studentId)
         {
             try
             {
+                // Verificar permisos - Solo admin o profesor del curso
+                var userRole = GetCurrentUserRole();
+                var userId = GetCurrentUserId();
+                
+                var offering = await _context.CourseOfferings
+                    .FirstOrDefaultAsync(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
+                
+                if (offering == null)
+                {
+                    TempData["Error"] = "No se encontró la oferta de curso";
+                    return RedirectToAction(nameof(MisCursos));
+                }
+
+                if (userRole != "Administrador" && offering.ProfessorId != userId)
+                {
+                    TempData["Error"] = "No tiene permisos para desinscribir estudiantes en este curso";
+                    return RedirectToAction(nameof(MisCursos));
+                }
+
                 var enrollment = await _context.Enrollments
                     .FirstOrDefaultAsync(e => e.CourseOfferingId == courseOfferingId &&
                                              e.StudentId == studentId &&
@@ -517,10 +635,10 @@ namespace Control_De_Tareas.Controllers
             }
         }
 
-        // POST: CourseOfferings/MatricularEstudiante (Este es el que usa MisCursos)
+        // POST: CourseOfferings/MatricularEstudiante
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MatricularEstudiante(Guid courseOfferingId) // CAMBIADO de int a Guid
+        public async Task<IActionResult> MatricularEstudiante(Guid courseOfferingId)
         {
             try
             {
@@ -533,8 +651,11 @@ namespace Control_De_Tareas.Controllers
                 var userJson = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(userSession));
                 var user = JsonSerializer.Deserialize<UserVm>(userJson);
 
-                string userRole = "Estudiante";
-                // ... (Lógica de rol abreviada para claridad, se mantiene igual) ...
+                // Verificar que sea estudiante
+                if (!IsEstudianteFromSession())
+                {
+                    return Json(new { success = false, message = "Solo los estudiantes pueden matricularse" });
+                }
 
                 var existingEnrollment = await _context.Enrollments
                     .FirstOrDefaultAsync(e => e.CourseOfferingId == courseOfferingId &&
@@ -555,14 +676,14 @@ namespace Control_De_Tareas.Controllers
                     return Json(new { success = false, message = "El curso no está disponible para matrícula" });
                 }
 
-                if (offering.Period.StartDate.Date <= DateTime.Now.Date)
+                if (DateTime.Now.Date > offering.Period.EndDate.Date)
                 {
                     return Json(new { success = false, message = "El período de matrícula ha finalizado" });
                 }
 
                 var enrollment = new Enrollments
                 {
-                    Id = Guid.NewGuid(), // AGREGAR ESTA LÍNEA
+                    Id = Guid.NewGuid(),
                     CourseOfferingId = courseOfferingId,
                     StudentId = user.UserId,
                     EnrolledAt = DateTime.Now,
@@ -585,19 +706,38 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/ToggleStatus/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ToggleStatus(Guid id) // CAMBIADO de int a Guid
+        public async Task<IActionResult> ToggleStatus(Guid id)
         {
             var offering = await _context.CourseOfferings
                 .FirstOrDefaultAsync(co => co.Id == id && !co.IsSoftDeleted);
 
             if (offering == null) return NotFound();
 
+            // Verificar permisos - Solo admin o profesor del curso
+            var userRole = GetCurrentUserRole();
+            var userId = GetCurrentUserId();
+            
+            if (userRole != "Administrador" && offering.ProfessorId != userId)
+            {
+                TempData["Error"] = "No tiene permisos para cambiar el estado de este curso";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
             offering.IsActive = !offering.IsActive;
             await _context.SaveChangesAsync();
 
             var status = offering.IsActive ? "activada" : "desactivada";
             TempData["Success"] = $"Oferta {status} exitosamente";
-            return RedirectToAction(nameof(MisCursos));
+            
+            // Redirigir según el rol
+            if (userRole == "Administrador")
+            {
+                return RedirectToAction(nameof(ListadoOfertas));
+            }
+            else
+            {
+                return RedirectToAction(nameof(MisCursos));
+            }
         }
 
         private async Task LoadDropdownsAsync(CourseOfferingVm? model = null)
@@ -635,7 +775,6 @@ namespace Control_De_Tareas.Controllers
                 })
                 .ToListAsync();
         }
-     
 
         // GET: CourseOfferings/Documentos/{id}
         public IActionResult Documentos(Guid id)
@@ -643,6 +782,7 @@ namespace Control_De_Tareas.Controllers
             // Limpiar mensajes antiguos
             TempData.Remove("Success");
             TempData.Remove("Error");
+            
             var courseOffering = _context.CourseOfferings
                 .Include(c => c.Course)
                 .FirstOrDefault(c => c.Id == id);
@@ -652,12 +792,37 @@ namespace Control_De_Tareas.Controllers
                 return NotFound();
             }
 
+            // Verificar permisos
+            var userRole = GetCurrentUserRole();
+            var userId = GetCurrentUserId();
+            
+            if (userRole == "Estudiante")
+            {
+                // Verificar si el estudiante está inscrito
+                var isEnrolled = _context.Enrollments
+                    .Any(e => e.CourseOfferingId == id && 
+                             e.StudentId == userId && 
+                             !e.IsSoftDeleted);
+                
+                if (!isEnrolled)
+                {
+                    TempData["Error"] = "No tienes acceso a los documentos de este curso";
+                    return RedirectToAction(nameof(MisCursos));
+                }
+            }
+            else if (userRole == "Profesor" && courseOffering.ProfessorId != userId)
+            {
+                TempData["Error"] = "No tienes permisos para acceder a los documentos de este curso";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
             // Obtener lista de archivos del sistema de archivos
             var documents = _fileStorageService.GetCourseDocuments(id);
 
             ViewBag.CourseOfferingId = id;
             ViewBag.CourseName = courseOffering.Course?.Title ?? "Sin nombre";
-            ViewBag.UserRole = GetCurrentUserRole();
+            ViewBag.UserRole = userRole;
+            ViewBag.IsProfesor = (userRole == "Profesor" && courseOffering.ProfessorId == userId) || userRole == "Administrador";
 
             return View(documents);
         }
@@ -667,6 +832,25 @@ namespace Control_De_Tareas.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UploadDocument(Guid courseOfferingId, IFormFile file)
         {
+            // Verificar permisos - Solo profesor del curso o admin
+            var userRole = GetCurrentUserRole();
+            var userId = GetCurrentUserId();
+            
+            var offering = await _context.CourseOfferings
+                .FirstOrDefaultAsync(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
+            
+            if (offering == null)
+            {
+                TempData["Error"] = "No se encontró el curso";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
+            if (userRole != "Administrador" && offering.ProfessorId != userId)
+            {
+                TempData["Error"] = "Solo el profesor del curso puede subir documentos";
+                return RedirectToAction("Documentos", new { id = courseOfferingId });
+            }
+
             if (file == null || file.Length == 0)
             {
                 TempData["Error"] = "Debe seleccionar un archivo.";
@@ -710,6 +894,37 @@ namespace Control_De_Tareas.Controllers
         {
             try
             {
+                // Verificar permisos
+                var userRole = GetCurrentUserRole();
+                var userId = GetCurrentUserId();
+                
+                if (userRole == "Estudiante")
+                {
+                    // Verificar si el estudiante está inscrito
+                    var isEnrolled = _context.Enrollments
+                        .Any(e => e.CourseOfferingId == courseOfferingId && 
+                                 e.StudentId == userId && 
+                                 !e.IsSoftDeleted);
+                    
+                    if (!isEnrolled)
+                    {
+                        TempData["Error"] = "No tienes permisos para descargar este documento";
+                        return RedirectToAction(nameof(MisCursos));
+                    }
+                }
+                else if (userRole == "Profesor")
+                {
+                    // Verificar si es el profesor del curso
+                    var offering = _context.CourseOfferings
+                        .FirstOrDefault(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
+                    
+                    if (offering?.ProfessorId != userId)
+                    {
+                        TempData["Error"] = "No tienes permisos para descargar este documento";
+                        return RedirectToAction(nameof(MisCursos));
+                    }
+                }
+
                 var filePath = _fileStorageService.GetCourseDocumentPath(courseOfferingId, fileName);
 
                 if (!System.IO.File.Exists(filePath))
@@ -744,6 +959,25 @@ namespace Control_De_Tareas.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult DeleteDocument(Guid courseOfferingId, string fileName)
         {
+            // Verificar permisos - Solo profesor del curso o admin
+            var userRole = GetCurrentUserRole();
+            var userId = GetCurrentUserId();
+            
+            var offering = _context.CourseOfferings
+                .FirstOrDefault(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
+            
+            if (offering == null)
+            {
+                TempData["Error"] = "No se encontró el curso";
+                return RedirectToAction(nameof(MisCursos));
+            }
+
+            if (userRole != "Administrador" && offering.ProfessorId != userId)
+            {
+                TempData["Error"] = "Solo el profesor del curso puede eliminar documentos";
+                return RedirectToAction("Documentos", new { id = courseOfferingId });
+            }
+
             try
             {
                 bool deleted = _fileStorageService.DeleteCourseDocument(courseOfferingId, fileName);
@@ -766,6 +1000,8 @@ namespace Control_De_Tareas.Controllers
             return RedirectToAction("Documentos", new { id = courseOfferingId });
         }
 
+        #region Helper Methods
+
         private string GetCurrentUserRole()
         {
             var sesionBase64 = HttpContext.Session.GetString("UserSession");
@@ -777,35 +1013,85 @@ namespace Control_De_Tareas.Controllers
                 var base64EncodedBytes = System.Convert.FromBase64String(sesionBase64);
                 var sesion = System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
                 var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserVm>(sesion);
-                return userInfo?.Rol?.Nombre;
+                return userInfo?.Rol?.Nombre ?? "Estudiante";
             }
             catch
             {
-                return null;
+                return "Estudiante";
             }
+        }
+
+        private Guid GetCurrentUserId()
+        {
+            var sesionBase64 = HttpContext.Session.GetString("UserSession");
+            if (string.IsNullOrEmpty(sesionBase64))
+                return Guid.Empty;
+
+            try
+            {
+                var base64EncodedBytes = System.Convert.FromBase64String(sesionBase64);
+                var sesion = System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
+                var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserVm>(sesion);
+                return userInfo?.UserId ?? Guid.Empty;
+            }
+            catch
+            {
+                return Guid.Empty;
+            }
+        }
+
+        private bool IsAdmin()
+        {
+            return GetCurrentUserRole() == "Administrador";
+        }
+
+        private bool IsProfesor()
+        {
+            var role = GetCurrentUserRole();
+            return role == "Profesor" || role == "Administrador";
+        }
+
+        private bool IsAdminFromSession()
+        {
+            var role = GetCurrentUserRole();
+            return role == "Administrador";
+        }
+
+        private bool IsProfesorFromSession()
+        {
+            var role = GetCurrentUserRole();
+            return role == "Profesor";
+        }
+
+        private bool IsEstudianteFromSession()
+        {
+            var role = GetCurrentUserRole();
+            return role == "Estudiante";
         }
 
         private string GetContentType(string path)
         {
             var types = new Dictionary<string, string>
-    {
-        {".pdf", "application/pdf"},
-        {".doc", "application/msword"},
-        {".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-        {".xls", "application/vnd.ms-excel"},
-        {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-        {".ppt", "application/vnd.ms-powerpoint"},
-        {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
-        {".png", "image/png"},
-        {".jpg", "image/jpeg"},
-        {".jpeg", "image/jpeg"},
-        {".gif", "image/gif"},
-        {".txt", "text/plain"},
-        {".zip", "application/zip"}
-    };
+            {
+                {".pdf", "application/pdf"},
+                {".doc", "application/msword"},
+                {".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+                {".xls", "application/vnd.ms-excel"},
+                {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+                {".ppt", "application/vnd.ms-powerpoint"},
+                {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+                {".png", "image/png"},
+                {".jpg", "image/jpeg"},
+                {".jpeg", "image/jpeg"},
+                {".gif", "image/gif"},
+                {".txt", "text/plain"},
+                {".zip", "application/zip"}
+            };
 
             var ext = Path.GetExtension(path).ToLowerInvariant();
             return types.ContainsKey(ext) ? types[ext] : "application/octet-stream";
         }
+
+        #endregion
     }
 }

@@ -2,53 +2,82 @@
 @{
     ViewData["Title"] = "Mis Cursos";
     var userRole = ViewBag.UserRole as string ?? "Estudiante";
+    var isAdmin = userRole == "Administrador";
+    var isProfesor = userRole == "Profesor";
+    var isEstudiante = userRole == "Estudiante";
 }
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 text-primary">
             <i class="bi bi-journal-bookmark"></i>
-            @(userRole == "Profesor" ? "Cursos que Imparto" : "Mis Cursos Matriculados")
+            @(isProfesor ? "Cursos que Imparto" : 
+              isAdmin ? "Gestión de Cursos" : 
+              "Mis Cursos Matriculados")
         </h1>
-        @if (userRole == "Administrador")
+        @if (isAdmin)
         {
-            <a href="@Url.Action("ListadoOfertas", "CourseOfferings")" class="btn btn-outline-primary">
-                <i class="bi bi-gear"></i> Gestionar Todas las Ofertas
+            <a href="@Url.Action("Create", "CourseOfferings")" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Nueva Oferta
             </a>
         }
     </div>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Estado del Curso</label>
-                    <select id="statusFilter" class="form-select">
-                        <option value="">Todos los estados</option>
-                        <option value="En Curso">En Curso</option>
-                        <option value="Próximo">Próximos</option>
-                        <option value="Finalizado">Finalizados</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Buscar Curso</label>
-                    <input type="text" id="searchFilter" class="form-control" placeholder="Buscar por nombre...">
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button id="clearFilters" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-clockwise"></i> Limpiar
-                    </button>
+    <!-- Mensajes -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i>
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!isEstudiante)
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Estado del Curso</label>
+                        <select id="statusFilter" class="form-select">
+                            <option value="">Todos los estados</option>
+                            <option value="En Curso">En Curso</option>
+                            <option value="Próximo">Próximos</option>
+                            <option value="Finalizado">Finalizados</option>
+                            <option value="Inactivo">Inactivos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Buscar Curso</label>
+                        <input type="text" id="searchFilter" class="form-control" placeholder="Buscar por nombre...">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button id="clearFilters" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> Limpiar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    }
 
     <div class="row" id="cursosGrid">
         @foreach (var curso in Model)
         {
             <div class="col-xl-4 col-lg-6 col-md-6 mb-4 curso-card"
-                 data-status="@curso.Status"
-                 data-name="@curso.CourseName.ToLower()">
+                 data-status="@curso.Status.ToLower()"
+                 data-name="@curso.CourseName.ToLower()"
+                 data-active="@curso.IsActive.ToString().ToLower()">
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="card-header bg-transparent border-bottom-0 pb-0">
                         <div class="d-flex justify-content-between align-items-start">
@@ -75,7 +104,7 @@
                         <p class="card-text text-muted small mb-2">
                             <strong>Período:</strong> @curso.PeriodName
                         </p>
-                        @if (userRole == "Profesor")
+                        @if (isProfesor || isAdmin)
                         {
                             <p class="card-text text-muted small mb-2">
                                 <strong>Estudiantes:</strong> @curso.EnrolledStudentsCount
@@ -83,7 +112,8 @@
                         }
                         <p class="card-text text-muted small">
                             <strong>Fecha:</strong>
-                            @curso.PeriodStartDate?.ToString("dd/MM/yyyy") - @curso.PeriodEndDate?.ToString("dd/MM/yyyy")
+                            @(curso.PeriodStartDate?.ToString("dd/MM/yyyy") ?? "N/A") - 
+                            @(curso.PeriodEndDate?.ToString("dd/MM/yyyy") ?? "N/A")
                         </p>
 
                         @if (curso.PeriodStartDate.HasValue && curso.PeriodEndDate.HasValue)
@@ -109,20 +139,22 @@
 
                     <div class="card-footer bg-transparent border-top-0 pt-0">
                         <div class="d-grid gap-2">
-                            @if (userRole == "Estudiante")
+                            <!-- Para Estudiantes -->
+                            @if (isEstudiante)
                             {
-                                if (curso.Status == "Próximo")
+                                if (curso.Status == "Próximo" && curso.IsActive)
                                 {
                                     <button class="btn btn-success btn-sm"
-                                            onclick="matricularCurso(@curso.Id)">
+                                            onclick="matricularCurso('@curso.Id')">
                                         <i class="bi bi-plus-circle"></i> Matricular
                                     </button>
                                 }
-                                else if (curso.Status == "En Curso")
+                                else if (curso.Status == "En Curso" || curso.Status == "Próximo")
                                 {
-                                    <button class="btn btn-outline-success btn-sm" disabled>
-                                        <i class="bi bi-check-circle"></i> Ya Matriculado
-                                    </button>
+                                    <a href="@Url.Action("Details", "CourseOfferings", new { id = curso.Id })"
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-eye"></i> Ver Curso
+                                    </a>
                                 }
                                 else
                                 {
@@ -132,26 +164,43 @@
                                 }
                             }
 
-                            <a href="@Url.Action("Details", "CourseOfferings", new { id = curso.Id })"
-                               class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-eye"></i> Ver Detalles
-                            </a>
-
-                            @if (userRole == "Profesor" || userRole == "Administrador")
+                            <!-- Para Profesores y Administradores -->
+                            @if (isProfesor || isAdmin)
                             {
-                                <a href="@Url.Action("Index", "CourseOfferings", new { id = curso.Id })"
-                                   class="btn btn-outline-info btn-sm">
-                                    <i class="bi bi-people"></i> Gestionar Inscripciones
+                                <a href="@Url.Action("Details", "CourseOfferings", new { id = curso.Id })"
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-eye"></i> Ver Detalles
                                 </a>
 
-                                <form method="post" action="@Url.Action("ToggleStatus", "CourseOfferings")" class="d-grid">
-                                    <input type="hidden" name="id" value="@curso.Id" />
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn @(curso.IsActive ? "btn-warning" : "btn-success") btn-sm">
-                                        <i class="bi bi-power"></i>
-                                        @(curso.IsActive ? "Desactivar" : "Activar")
-                                    </button>
-                                </form>
+                                <a href="@Url.Action("Documentos", "CourseOfferings", new { id = curso.Id })"
+                                   class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-folder"></i> Documentos
+                                </a>
+
+                                @if ((isProfesor && curso.Status == "En Curso") || isAdmin)
+                                {
+                                    <a href="@Url.Action("Index", "CourseOfferings", new { id = curso.Id })"
+                                       class="btn btn-outline-warning btn-sm">
+                                        <i class="bi bi-people"></i> Inscripciones
+                                    </a>
+                                }
+
+                                <!-- Botón Activar/Desactivar (solo para cursos del profesor o admin) -->
+                                @if ((isProfesor && curso.IsActive) || isAdmin)
+                                {
+                                    <form method="post" 
+                                          action="@Url.Action("ToggleStatus", "CourseOfferings")" 
+                                          class="d-grid"
+                                          onsubmit="return confirmToggleStatus(@curso.Id, @curso.IsActive.ToString().ToLower())">
+                                        <input type="hidden" name="id" value="@curso.Id" />
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" 
+                                                class="btn @(curso.IsActive ? "btn-warning" : "btn-success") btn-sm">
+                                            <i class="bi bi-power"></i>
+                                            @(curso.IsActive ? "Desactivar" : "Activar")
+                                        </button>
+                                    </form>
+                                }
                             }
                         </div>
                     </div>
@@ -164,11 +213,17 @@
     {
         <div class="text-center py-5">
             <i class="bi bi-journal-x display-1 text-muted"></i>
-            <h3 class="text-muted mt-3">No tienes cursos asignados</h3>
+            <h3 class="text-muted mt-3">
+                @(isEstudiante ? "No estás matriculado en ningún curso" :
+                  isProfesor ? "No tienes cursos asignados" :
+                  "No hay cursos disponibles")
+            </h3>
             <p class="text-muted">
-                @(userRole == "Estudiante" ? "No estás matriculado en ningún curso actualmente." : "No tienes cursos asignados para impartir.")
+                @(isEstudiante ? "Consulta con tu administrador para matricularte en cursos." :
+                  isProfesor ? "Contacta al administrador para que te asigne cursos." :
+                  "Crea la primera oferta de curso.")
             </p>
-            @if (userRole == "Administrador")
+            @if (isAdmin)
             {
                 <a href="@Url.Action("Create", "CourseOfferings")" class="btn btn-primary mt-3">
                     <i class="bi bi-plus-circle"></i> Crear Nueva Oferta
@@ -181,19 +236,30 @@
 @section Scripts {
     <script>
         // Filtros JavaScript
-        document.getElementById('statusFilter').addEventListener('change', filterCursos);
-        document.getElementById('searchFilter').addEventListener('input', filterCursos);
-        document.getElementById('clearFilters').addEventListener('click', clearFilters);
+        if (document.getElementById('statusFilter')) {
+            document.getElementById('statusFilter').addEventListener('change', filterCursos);
+            document.getElementById('searchFilter').addEventListener('input', filterCursos);
+            document.getElementById('clearFilters').addEventListener('click', clearFilters);
+        }
 
         function filterCursos() {
-            const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
-            const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter')?.value.toLowerCase() || '';
+            const searchFilter = document.getElementById('searchFilter')?.value.toLowerCase() || '';
 
             document.querySelectorAll('.curso-card').forEach(card => {
-                const status = card.getAttribute('data-status').toLowerCase();
+                const status = card.getAttribute('data-status');
                 const name = card.getAttribute('data-name');
+                const isActive = card.getAttribute('data-active') === 'true';
 
-                const statusMatch = !statusFilter || status === statusFilter;
+                let statusMatch = true;
+                if (statusFilter) {
+                    if (statusFilter === 'inactivo') {
+                        statusMatch = !isActive;
+                    } else {
+                        statusMatch = status === statusFilter;
+                    }
+                }
+                
                 const searchMatch = !searchFilter || name.includes(searchFilter);
 
                 card.style.display = (statusMatch && searchMatch) ? 'block' : 'none';
@@ -201,8 +267,12 @@
         }
 
         function clearFilters() {
-            document.getElementById('statusFilter').value = '';
-            document.getElementById('searchFilter').value = '';
+            if (document.getElementById('statusFilter')) {
+                document.getElementById('statusFilter').value = '';
+            }
+            if (document.getElementById('searchFilter')) {
+                document.getElementById('searchFilter').value = '';
+            }
             filterCursos();
         }
 
@@ -211,12 +281,19 @@
                 const formData = new FormData();
                 formData.append('courseOfferingId', cursoId);
 
+                // Obtener el token anti-falsificación
+                const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
                 fetch('@Url.Action("MatricularEstudiante", "CourseOfferings")', {
                     method: 'POST',
                     headers: {
-                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        'RequestVerificationToken': token,
+                        'Content-Type': 'application/x-www-form-urlencoded'
                     },
-                    body: formData
+                    body: new URLSearchParams({
+                        courseOfferingId: cursoId,
+                        __RequestVerificationToken: token
+                    })
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -238,6 +315,14 @@
                 });
             }
         }
+
+        function confirmToggleStatus(cursoId, isActive) {
+            const message = isActive 
+                ? "¿Está seguro de desactivar este curso? Los estudiantes no podrán acceder a él."
+                : "¿Está seguro de activar este curso? Los estudiantes podrán verlo y matricularse.";
+            
+            return confirm(message);
+        }
     </script>
 }
 
@@ -249,6 +334,7 @@
             "En Curso" => "bg-success",
             "Próximo" => "bg-warning",
             "Finalizado" => "bg-secondary",
+            "Inactivo" => "bg-danger",
             _ => "bg-light text-dark"
         };
     }
