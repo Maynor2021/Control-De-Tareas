@@ -2,7 +2,7 @@ using Control_De_Tareas.Authorization;
 using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
-using Control_De_Tareas.Services; 
+using Control_De_Tareas.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -16,13 +16,13 @@ namespace Control_De_Tareas.Controllers
     {
         private readonly ContextDB _context;
         private readonly ILogger<TareasController> _logger;
-        private readonly AuditService _auditService; 
+        private readonly AuditService _auditService;
 
         public TareasController(ContextDB context, ILogger<TareasController> logger, AuditService auditService)
         {
             _context = context;
             _logger = logger;
-            _auditService = auditService; 
+            _auditService = auditService;
         }
 
         // ========================= LISTADO GENERAL =========================
@@ -44,17 +44,7 @@ namespace Control_De_Tareas.Controllers
         [Authorize(Roles = "Profesor,Administrador")]
         public async Task<IActionResult> Crear()
         {
-            var courseOfferings = await _context.CourseOfferings
-                .Where(co => !co.IsSoftDeleted && co.IsActive)
-                .Include(co => co.Course)
-                .Select(co => new SelectListItem
-                {
-                    Value = co.Id.ToString(),
-                    Text = $"{co.Course.Code} - {co.Course.Title} - Sección {co.Section}"
-                })
-                .ToListAsync();
-
-            ViewBag.CourseOfferings = courseOfferings;
+            await LoadCourseOfferingsAsync();
             return View();
         }
 
@@ -102,7 +92,7 @@ namespace Control_De_Tareas.Controllers
                 _context.Tareas.Add(tarea);
                 await _context.SaveChangesAsync();
 
-                //  AUDITORÍA: Creación de tarea
+                // AUDITORÍA: Creación de tarea
                 await _auditService.LogCreateAsync("Tarea", tarea.Id, tarea.Title);
 
                 TempData["Success"] = "Tarea creada exitosamente";
@@ -112,7 +102,7 @@ namespace Control_De_Tareas.Controllers
             {
                 _logger.LogError(ex, "Error al guardar la tarea");
 
-                //  AUDITORÍA: Error al crear tarea
+                // AUDITORÍA: Error al crear tarea
                 await _auditService.LogAsync("TAREA_CREATE_ERROR", "Tarea", null,
                     $"Error al crear tarea '{vm.Title}': {ex.Message}");
 
@@ -200,7 +190,8 @@ namespace Control_De_Tareas.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Profesor,Administrador")]
         public async Task<IActionResult> Editar(Guid id, [Bind("Id,CourseOfferingId,Title,Description,DueDate,MaxScore")] Tareas model)
-            // LOG: registra cuando el POST se invoca (útil para verificar si la petición llega al servidor
+        {
+            // LOG: registra cuando el POST se invoca
             _logger.LogInformation("👉 POST Editar invocado | ID={Id} | Usuario={User}", id, User?.Identity?.Name);
 
             if (id == Guid.Empty || model == null || id != model.Id)
@@ -227,6 +218,7 @@ namespace Control_De_Tareas.Controllers
                 var tarea = await _context.Tareas.FirstOrDefaultAsync(t => t.Id == id && !t.IsSoftDeleted);
                 if (tarea == null)
                     return NotFound();
+
                 // Guardar valores antiguos para auditoría
                 var oldValues = new
                 {
@@ -237,7 +229,6 @@ namespace Control_De_Tareas.Controllers
                 };
 
                 // Actualizar
-                // Actualizar sólo campos permitidos
                 tarea.Title = model.Title;
                 tarea.Description = model.Description;
                 tarea.DueDate = model.DueDate;
@@ -246,16 +237,17 @@ namespace Control_De_Tareas.Controllers
                 _context.Tareas.Update(tarea);
                 await _context.SaveChangesAsync();
 
-                //  AUDITORÍA: Actualización de tarea
+                // AUDITORÍA: Actualización de tarea
                 await _auditService.LogUpdateAsync("Tarea", tarea.Id, tarea.Title);
 
                 TempData["Success"] = "Tarea actualizada correctamente.";
                 return RedirectToAction(nameof(Index));
+            }
             catch (DbUpdateConcurrencyException dex)
             {
                 _logger.LogError(dex, "Concurrency error editando tarea {Id}", id);
 
-                //  AUDITORÍA: Error de concurrencia
+                // AUDITORÍA: Error de concurrencia
                 await _auditService.LogAsync("TAREA_UPDATE_CONCURRENCY", "Tarea", id,
                     "Error de concurrencia al editar tarea");
 
@@ -265,20 +257,21 @@ namespace Control_De_Tareas.Controllers
                 ViewBag.CourseOffering = co;
                 return View(model);
             }
-            }
             catch (Exception ex)
+            {
                 _logger.LogError(ex, "Error editando tarea {Id}", id);
 
-                //  AUDITORÍA: Error al actualizar tarea
+                // AUDITORÍA: Error al actualizar tarea
                 await _auditService.LogAsync("TAREA_UPDATE_ERROR", "Tarea", id,
                     $"Error al actualizar tarea: {ex.Message}");
 
-                _logger.LogError(ex, "Error editando tarea {Id}", id);
                 ModelState.AddModelError("", "Ocurrió un error al editar la tarea.");
+                var co = await _context.CourseOfferings.AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.Id == model.CourseOfferingId);
+                ViewBag.CourseOffering = co;
                 return View(model);
             }
         }
-
 
         // ---------- DELETE (GET) ----------
         [Authorize(Roles = "Profesor,Administrador")]
@@ -286,7 +279,7 @@ namespace Control_De_Tareas.Controllers
         {
             var tarea = await _context.Tareas
                 .Include(t => t.CourseOffering)
-                .ThenInclude(co => co.Course)
+                    .ThenInclude(co => co.Course)
                 .FirstOrDefaultAsync(t => t.Id == id && !t.IsSoftDeleted);
 
             if (tarea == null)
@@ -316,7 +309,7 @@ namespace Control_De_Tareas.Controllers
                 tarea.IsSoftDeleted = true;
                 await _context.SaveChangesAsync();
 
-                //  AUDITORÍA: Eliminación de tarea (soft delete)
+                // AUDITORÍA: Eliminación de tarea (soft delete)
                 await _auditService.LogDeleteAsync("Tarea", tarea.Id, tarea.Title);
 
                 TempData["Success"] = "Tarea eliminada correctamente";
@@ -372,6 +365,7 @@ namespace Control_De_Tareas.Controllers
                 })
                 .ToListAsync();
 
+            ViewBag.CourseOfferings = courseOfferings;
+        }
+    }
 }
-}
-
