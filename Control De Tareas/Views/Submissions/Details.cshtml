@@ -1,0 +1,142 @@
+﻿@model Control_De_Tareas.Data.Entitys.Submissions
+
+@{
+    ViewData["Title"] = "Detalle de Entrega";
+}
+
+<div class="container mt-4">
+    <div class="card shadow-lg border-0 rounded-4 premium-card">
+        <div class="card-header bg-primary text-white rounded-top-4">
+            <h4 class="mb-0">
+                <i class="bi bi-eye"></i> Detalle de Entrega
+            </h4>
+        </div>
+
+        <div class="card-body p-4">
+
+            <!-- INFO GENERAL -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h6 class="text-muted">Estudiante</h6>
+                    <p class="fw-bold">
+                        <i class="bi bi-person-circle"></i> @Model.Student?.UserName
+                    </p>
+                </div>
+
+                <div class="col-md-6">
+                    <h6 class="text-muted">Curso</h6>
+                    <p class="fw-bold">
+                        <i class="bi bi-book"></i> @Model.Task?.CourseOffering?.Course?.Title
+                    </p>
+                </div>
+
+                <div class="col-md-6">
+                    <h6 class="text-muted">Tarea</h6>
+                    <p class="fw-bold">
+                        <i class="bi bi-file-text"></i> @Model.Task?.Title
+                    </p>
+                </div>
+
+                <div class="col-md-6">
+                    <h6 class="text-muted">Fecha de entrega</h6>
+                    <p class="fw-bold">
+                        <i class="bi bi-calendar"></i> @Model.SubmittedAt.ToString("dd/MM/yyyy HH:mm")
+                    </p>
+                </div>
+            </div>
+
+            <!-- ESTADO -->
+            <div class="mb-4">
+                <h6 class="text-muted">Estado</h6>
+                @if (Model.Status == "Calificada")
+                {
+                    <span class="badge bg-success fs-6">Calificada</span>
+                }
+                else
+                {
+                    <span class="badge bg-warning text-dark fs-6">Pendiente</span>
+                }
+            </div>
+
+            <!-- COMENTARIO -->
+            <div class="mb-4">
+                <h6 class="text-muted">Comentario del estudiante</h6>
+                <div class="p-3 bg-light rounded-3 shadow-sm">
+                    @(string.IsNullOrEmpty(Model.Comments) ? "Sin comentarios." : Model.Comments)
+                </div>
+            </div>
+
+            <!-- ARCHIVOS -->
+            <div class="mb-4">
+                <h6 class="text-muted">Archivos entregados</h6>
+
+                @if (Model.SubmissionFiles != null && Model.SubmissionFiles.Any())
+                {
+                    <ul class="list-group shadow-sm">
+                        @foreach (var file in Model.SubmissionFiles)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="bi bi-paperclip"></i> @file.FileName
+                                </span>
+                                <a class="btn btn-sm btn-outline-primary"
+                                   href="@Url.Content(file.FilePath)"
+                                   target="_blank">
+                                    <i class="bi bi-download"></i> Descargar
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-muted">No se adjuntaron archivos.</p>
+                }
+            </div>
+
+            <!-- CALIFICACIÓN -->
+            <div class="mb-4">
+                <h6 class="text-muted">Calificación</h6>
+
+                @if (Model.CurrentGrade.HasValue && Model.CurrentGrade > 0)
+                {
+                    <h3 class="text-success fw-bold">
+                        @Model.CurrentGrade / @Model.Task?.MaxScore
+                    </h3>
+                }
+                else
+                {
+                    <p class="text-muted">Aún no ha sido calificada.</p>
+                }
+            </div>
+
+            <!-- BOTONES -->
+            <div class="d-flex justify-content-between mt-4">
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+
+                @if (User.IsInRole("Profesor") || User.IsInRole("Administrador"))
+                {
+                    <a asp-action="Review"
+                       asp-route-taskId="@Model.TaskId"
+                       class="btn btn-primary">
+                        <i class="bi bi-pencil-square"></i> Calificar
+                    </a>
+                }
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .premium-card {
+        transition: all .25s ease-in-out;
+    }
+
+        .premium-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(0,0,0,.2);
+        }
+</style>

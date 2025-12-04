@@ -57,6 +57,35 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
+        // ✅ DETAILS (OJITO AZUL)
+        // ============================
+        [HttpGet]
+        public async Task<IActionResult> Details(Guid id)
+        {
+            var userInfo = GetCurrentUser();
+            if (userInfo == null)
+                return RedirectToAction("Login", "Account");
+
+            var submission = await _context.Submissions
+                .Include(s => s.Task)
+                    .ThenInclude(t => t.CourseOffering)
+                        .ThenInclude(co => co.Course)
+                .Include(s => s.Student)
+                .Include(s => s.SubmissionFiles)
+                .Include(s => s.Grades)
+                .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
+
+            if (submission == null)
+                return NotFound();
+
+            // 🔐 Seguridad: estudiante solo ve su entrega
+            if (userInfo.Rol?.Nombre == "Estudiante" && submission.StudentId != userInfo.UserId)
+                return Forbid();
+
+            return View(submission);
+        }
+
+        // ============================
         // ✅ CREATE GET
         // ============================
         [HttpGet]
@@ -205,14 +234,51 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // ✅ CALIFICAR ENTREGA (S3-13)
+        // ✅ REVIEW POR TAREA (S3-14)
+        // ============================
+        [HttpGet]
+        public async Task<IActionResult> Review(Guid taskId)
+        {
+            var userInfo = GetCurrentUser();
+
+            if (userInfo == null ||
+                (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador"))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var task = await _context.Tareas
+                .Include(t => t.CourseOffering)
+                    .ThenInclude(co => co.Course)
+                .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsSoftDeleted);
+
+            if (task == null)
+                return NotFound();
+
+            var submissions = await _context.Submissions
+                .Include(s => s.Student)
+                .Include(s => s.SubmissionFiles)
+                .Include(s => s.Grades)
+                .Where(s => s.TaskId == taskId && !s.IsSoftDeleted)
+                .OrderBy(s => s.Student.UserName)
+                .ToListAsync();
+
+            ViewBag.TaskTitle = task.Title;
+            ViewBag.MaxScore = task.MaxScore;
+
+            return View(submissions);
+        }
+
+        // ============================
+        // ✅ CALIFICAR ENTREGA
         // ============================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Grade(Guid id, decimal grade, string feedback)
         {
             var userInfo = GetCurrentUser();
-            if (userInfo == null || (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador"))
+            if (userInfo == null ||
+                (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador"))
                 return RedirectToAction("Login", "Account");
 
             if (grade < 0 || grade > 100)
@@ -255,32 +321,6 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // ✅ REABRIR ENTREGA
-        // ============================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Reopen(Guid id)
-        {
-            var userInfo = GetCurrentUser();
-            if (userInfo == null || (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador"))
-                return RedirectToAction("Login", "Account");
-
-            var submission = await _context.Submissions.FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
-            if (submission == null)
-                return NotFound();
-
-            submission.Status = "Submitted";
-            submission.CurrentGrade = null;
-
-            await _auditService.LogAsync("SUBMISSION_REOPEN", "Entrega", id, "Entrega reabierta");
-
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "✅ Entrega reabierta correctamente.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        // ============================
         // ✅ HELPERS
         // ============================
         private UserVm GetCurrentUser()
@@ -297,11 +337,12 @@ namespace Control_De_Tareas.Controllers
         {
             return await _context.Tareas
                 .Include(t => t.CourseOffering)
-                .ThenInclude(co => co.Course)
+                    .ThenInclude(co => co.Course)
                 .Include(t => t.CourseOffering)
-                .ThenInclude(co => co.Enrollments)
+                    .ThenInclude(co => co.Enrollments)
                 .Where(t => !t.IsSoftDeleted &&
-                            t.CourseOffering.Enrollments.Any(e => e.StudentId == studentId && !e.IsSoftDeleted))
+                            t.CourseOffering.Enrollments
+                                .Any(e => e.StudentId == studentId && !e.IsSoftDeleted))
                 .OrderByDescending(t => t.DueDate)
                 .Select(t => new TaskSelectVm
                 {
