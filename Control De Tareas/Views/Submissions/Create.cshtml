@@ -1,0 +1,292 @@
+﻿@model Control_De_Tareas.Models.SubmissionCreateVm
+
+@{
+    ViewData["Title"] = "Nueva Entrega";
+    var tasks = ViewBag.Tasks as List<Control_De_Tareas.Controllers.TaskSelectVm>;
+}
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-3">
+                <i class="bi bi-cloud-upload text-primary"></i>
+                Nueva Entrega
+            </h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a asp-action="Index">Mis Entregas</a>
+                    </li>
+                    <li class="breadcrumb-item active">Nueva Entrega</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Mensajes de error -->
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>Error:</strong>
+                    <ul class="mb-0 mt-2">
+                        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            <li>@error.ErrorMessage</li>
+                        }
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <form asp-action="Create" method="post" enctype="multipart/form-data">
+        <div class="row">
+            <!-- Columna principal - Formulario -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="mb-0">
+                            <i class="bi bi-file-earmark-text"></i>
+                            Información de la Entrega
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Selección de Tarea -->
+                        <div class="mb-4">
+                            <label asp-for="TaskId" class="form-label">
+                                <i class="bi bi-clipboard-check text-primary"></i>
+                                Selecciona la Tarea *
+                            </label>
+                            <select asp-for="TaskId" class="form-select form-select-lg" id="taskSelect">
+                                <option value="">-- Seleccione una tarea --</option>
+                                @if (tasks != null && tasks.Any())
+                                {
+                                    @foreach (var task in tasks)
+                                    {
+                                        var isOverdue = task.DueDate < DateTime.Now;
+                                        var daysRemaining = (task.DueDate - DateTime.Now).Days;
+
+                                        <option value="@task.Id"
+                                                data-title="@task.Title"
+                                                data-duedate="@task.DueDate.ToString("dd/MM/yyyy HH:mm")"
+                                                data-course="@task.CourseName">
+                                            @task.Title - @task.CourseName
+                                            @if (isOverdue)
+                                            {
+                                                <text>(⚠️ Vencida)</text>
+                                            }
+                                            else
+                                            {
+                                                <text>(Vence: @task.DueDate.ToString("dd/MM/yyyy"))</text>
+                                            }
+                                        </option>
+                                    }
+                                }
+                                else
+                                {
+                                    <option value="" disabled>No hay tareas disponibles</option>
+                                }
+                            </select>
+                            <span asp-validation-for="TaskId" class="text-danger"></span>
+
+                            <!-- Info de la tarea seleccionada -->
+                            <div id="taskInfo" class="alert alert-info mt-3" style="display: none;">
+                                <h6 class="alert-heading">
+                                    <i class="bi bi-info-circle"></i>
+                                    Información de la Tarea
+                                </h6>
+                                <p class="mb-1"><strong>Título:</strong> <span id="taskTitle"></span></p>
+                                <p class="mb-1"><strong>Curso:</strong> <span id="taskCourse"></span></p>
+                                <p class="mb-0"><strong>Fecha límite:</strong> <span id="taskDueDate"></span></p>
+                            </div>
+                        </div>
+
+                        <!-- Subir Archivos -->
+                        <div class="mb-4">
+                            <label asp-for="Files" class="form-label">
+                                <i class="bi bi-paperclip text-primary"></i>
+                                Archivos *
+                            </label>
+                            <input asp-for="Files"
+                                   type="file"
+                                   class="form-control form-control-lg"
+                                   multiple
+                                   accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                                   id="fileInput">
+                            <span asp-validation-for="Files" class="text-danger"></span>
+                            <small class="text-muted d-block mt-2">
+                                <i class="bi bi-info-circle"></i>
+                                Puedes subir múltiples archivos. Máximo 10MB por archivo.
+                            </small>
+
+                            <!-- Lista de archivos seleccionados -->
+                            <div id="fileList" class="mt-3"></div>
+                        </div>
+
+                        <!-- Comentarios -->
+                        <div class="mb-4">
+                            <label asp-for="Comments" class="form-label">
+                                <i class="bi bi-chat-left-text text-primary"></i>
+                                Comentarios Adicionales (Opcional)
+                            </label>
+                            <textarea asp-for="Comments"
+                                      class="form-control"
+                                      rows="4"
+                                      placeholder="Agrega cualquier comentario o nota sobre tu entrega..."></textarea>
+                            <span asp-validation-for="Comments" class="text-danger"></span>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Index" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i>
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-cloud-upload"></i>
+                                Enviar Entrega
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna lateral - Ayuda -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 mb-3">
+                    <div class="card-header bg-light py-3">
+                        <h6 class="mb-0">
+                            <i class="bi bi-question-circle text-primary"></i>
+                            Instrucciones
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <ol class="mb-0">
+                            <li class="mb-2">Selecciona la tarea a entregar</li>
+                            <li class="mb-2">Sube uno o más archivos</li>
+                            <li class="mb-2">Agrega comentarios si es necesario</li>
+                            <li class="mb-0">Haz click en "Enviar Entrega"</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-light py-3">
+                        <h6 class="mb-0">
+                            <i class="bi bi-file-earmark-check text-success"></i>
+                            Formatos Permitidos
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-file-pdf text-danger fs-4 me-2"></i>
+                            <span>PDF</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-file-word text-primary fs-4 me-2"></i>
+                            <span>Word (.doc, .docx)</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-file-image text-success fs-4 me-2"></i>
+                            <span>Imágenes (.jpg, .png)</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-file-text text-secondary fs-4 me-2"></i>
+                            <span>Texto (.txt)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        document.getElementById('taskSelect').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const taskInfo = document.getElementById('taskInfo');
+
+            if (this.value) {
+                document.getElementById('taskTitle').textContent = selectedOption.dataset.title;
+                document.getElementById('taskCourse').textContent = selectedOption.dataset.course;
+                document.getElementById('taskDueDate').textContent = selectedOption.dataset.duedate;
+                taskInfo.style.display = 'block';
+            } else {
+                taskInfo.style.display = 'none';
+            }
+        });
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+
+            if (this.files.length > 0) {
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                let html = '<div class="card-body"><h6 class="card-title">Archivos seleccionados:</h6><ul class="list-group list-group-flush">';
+
+                Array.from(this.files).forEach((file, index) => {
+                    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                    const icon = getFileIcon(file.name);
+                    html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="bi ${icon} me-2"></i>${file.name}</span>
+                                <span class="badge bg-secondary">${sizeInMB} MB</span>
+                             </li>`;
+                });
+
+                html += '</ul></div>';
+                card.innerHTML = html;
+                fileList.appendChild(card);
+            }
+        });
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            switch(ext) {
+                case 'pdf': return 'bi-file-pdf text-danger';
+                case 'doc':
+                case 'docx': return 'bi-file-word text-primary';
+                case 'jpg':
+                case 'jpeg':
+                case 'png': return 'bi-file-image text-success';
+                case 'txt': return 'bi-file-text text-secondary';
+                default: return 'bi-file-earmark';
+            }
+        }
+    </script>
+}
+
+<style>
+    .btn-primary {
+        background-color: #3b7dbd;
+        border-color: #3b7dbd;
+    }
+
+    .btn-primary:hover {
+        background-color: #2e6399;
+        border-color: #2e6399;
+    }
+
+    .text-primary {
+        color: #3b7dbd !important;
+    }
+
+    .bg-primary {
+        background-color: #3b7dbd !important;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #3b7dbd;
+        box-shadow: 0 0 0 0.25rem rgba(59, 125, 189, 0.25);
+    }
+</style>
