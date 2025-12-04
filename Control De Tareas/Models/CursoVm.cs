@@ -2,9 +2,9 @@
 {
     public class CursoVm
     {
-        public Guid Id { get; set; } // CAMBIADO de int a Guid
-        public string Codigo { get; set; }
-        public string Titulo { get; set; }
-        public string Seccion { get; set; }
+        public Guid Id { get; set; }
+        public string Codigo { get; set; } = string.Empty;
+        public string Titulo { get; set; } = string.Empty;
+        public string Seccion { get; set; } = string.Empty;
     }
 }

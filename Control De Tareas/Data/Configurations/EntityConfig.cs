@@ -25,14 +25,13 @@ namespace Control_De_Tareas.Data.Configurations
                    .HasPrecision(18, 2);
         }
     }
-
     public class CoursesConfiguration : IEntityTypeConfiguration<Courses>
     {
         public void Configure(EntityTypeBuilder<Courses> builder)
         {
             builder.ToTable("Courses");
 
-            builder.HasKey(c => c.Id); // ← Ya usa Guid
+            builder.HasKey(c => c.Id);
 
             builder.Property(c => c.Code)
                    .IsRequired()
@@ -54,6 +53,12 @@ namespace Control_De_Tareas.Data.Configurations
 
             builder.Property(c => c.IsSoftDeleted)
                    .HasDefaultValue(false);
+
+            // AGREGAR ESTAS RELACIONES:
+            builder.HasMany(c => c.CourseOfferings)
+                   .WithOne(co => co.Course)
+                   .HasForeignKey(co => co.CourseId)
+                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 
@@ -375,7 +380,7 @@ namespace Control_De_Tareas.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<CourseOfferings> builder)
         {
-            builder.HasKey(co => co.Id); // ← Ya usa Guid
+            builder.HasKey(co => co.Id);
 
             builder.Property(co => co.Section)
                    .HasMaxLength(10);
@@ -390,9 +395,10 @@ namespace Control_De_Tareas.Data.Configurations
             builder.Property(co => co.IsSoftDeleted)
                    .HasDefaultValue(false);
 
+            // RELACIÓN CON COURSE
             builder.HasOne(co => co.Course)
-                   .WithMany()
-                   .HasForeignKey(co => co.CourseId) // ← Ya usa Guid
+                   .WithMany(c => c.CourseOfferings)
+                   .HasForeignKey(co => co.CourseId)
                    .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(co => co.Professor)
@@ -402,12 +408,17 @@ namespace Control_De_Tareas.Data.Configurations
 
             builder.HasOne(co => co.Period)
                    .WithMany(p => p.CourseOfferings)
-                   .HasForeignKey(co => co.PeriodId) // ← Ya usa Guid
-                   .OnDelete(DeleteBehavior.Restrict);
+                   .HasForeignKey(co => co.PeriodId)
+                   .OnDelete(DeleteBehavior.NoAction);
 
             builder.HasIndex(co => co.CourseId);
             builder.HasIndex(co => co.ProfessorId);
             builder.HasIndex(co => co.PeriodId);
+
+            // Índice único para evitar duplicados
+            builder.HasIndex(co => new { co.CourseId, co.PeriodId, co.Section })
+                   .IsUnique()
+                   .HasFilter("[IsSoftDeleted] = 0");
         }
     }
 
