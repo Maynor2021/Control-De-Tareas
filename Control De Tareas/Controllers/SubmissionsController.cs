@@ -17,11 +17,13 @@ namespace Control_De_Tareas.Controllers
     {
         private readonly ContextDB _context;
         private readonly IFileStorageService _fileStorageService;
+        private readonly AuditService _auditService; 
 
-        public SubmissionsController(ContextDB context, IFileStorageService fileStorageService)
+        public SubmissionsController(ContextDB context, IFileStorageService fileStorageService, AuditService auditService)
         {
             _context = context;
             _fileStorageService = fileStorageService;
+            _auditService = auditService; 
         }
 
         // GET: Submissions (Mis Entregas)
@@ -177,8 +179,10 @@ namespace Control_De_Tareas.Controllers
                 _context.Submissions.Add(submission);
 
                 // 3. Guardar archivos
+                int filesCount = 0;
                 if (model.Files != null && model.Files.Any())
                 {
+                    filesCount = model.Files.Count;
                     foreach (var file in model.Files)
                     {
                         // Validar archivo
@@ -195,7 +199,6 @@ namespace Control_De_Tareas.Controllers
                         string uniqueFileName = $"{timestamp}_{Guid.NewGuid()}{extension}";
 
                         // Guardar físicamente usando la estructura existente
-                        // Convertir Guid a int para compatibilidad con FileStorageService
                         int courseOfferingIdInt = Math.Abs(task.CourseOffering.GetHashCode());
                         int taskIdInt = Math.Abs(task.Id.GetHashCode());
 
@@ -224,18 +227,228 @@ namespace Control_De_Tareas.Controllers
                 // 4. Guardar todo en la base de datos
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = $"✅ Entrega realizada exitosamente. Se subieron {model.Files?.Count ?? 0} archivo(s).";
+                //  AUDITORÍA: Entrega creada exitosamente
+                await _auditService.LogAsync("SUBMISSION_CREATE", "Entrega", submission.Id,
+                    $"Estudiante '{userInfo.Nombre}' entregó tarea '{task.Title}' con {filesCount} archivo(s)");
+
+                TempData["Success"] = $"✅ Entrega realizada exitosamente. Se subieron {filesCount} archivo(s).";
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
+                //  AUDITORÍA: Error al crear entrega
+                await _auditService.LogAsync("SUBMISSION_CREATE_ERROR", "Entrega", null,
+                    $"Error al crear entrega para tarea {model.TaskId}: {ex.Message}");
+
                 ModelState.AddModelError("", $"Error al procesar la entrega: {ex.Message}");
                 ViewBag.Tasks = await GetAvailableTasksForStudent(userInfo.UserId);
                 return View(model);
             }
         }
 
-   
+        // POST: Submissions/Delete (eliminación de entrega)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var userInfo = GetCurrentUser();
+            if (userInfo == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            try
+            {
+                var submission = await _context.Submissions
+                    .Include(s => s.Task)
+                    .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
+
+                if (submission == null)
+                {
+                    return NotFound();
+                }
+
+                // Verificar permisos: solo el estudiante dueño puede eliminar su entrega
+                if (submission.StudentId != userInfo.UserId && userInfo.Rol?.Nombre != "Administrador")
+                {
+                    TempData["Error"] = "No tienes permiso para eliminar esta entrega.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                //  AUDITORÍA: Antes de eliminar (guardar info)
+                var submissionInfo = new
+                {
+                    submission.Task?.Title,
+                    submission.StudentId,
+                    submission.SubmittedAt
+                };
+
+                // Soft delete de la entrega
+                submission.IsSoftDeleted = true;
+                await _context.SaveChangesAsync();
+
+                //  AUDITORÍA: Entrega eliminada
+                await _auditService.LogDeleteAsync("Entrega", submission.Id,
+                    $"Entrega de tarea '{submission.Task?.Title}' eliminada");
+
+                TempData["Success"] = "Entrega eliminada correctamente.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                //  AUDITORÍA: Error al eliminar entrega
+                await _auditService.LogAsync("SUBMISSION_DELETE_ERROR", "Entrega", id,
+                    $"Error al eliminar entrega: {ex.Message}");
+
+                TempData["Error"] = $"Error al eliminar la entrega: {ex.Message}";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // GET: Submissions/Grade (para profesores/administradores)
+        [HttpGet]
+        public async Task<IActionResult> Grade(Guid id)
+        {
+            var userInfo = GetCurrentUser();
+            if (userInfo == null || (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador"))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var submission = await _context.Submissions
+                .Include(s => s.Task)
+                .Include(s => s.Student)
+                .Include(s => s.SubmissionFiles)
+                .Include(s => s.Grades)
+                .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
+
+            if (submission == null)
+            {
+                return NotFound();
+            }
+
+            return View(submission);
+        }
+
+        // POST: Submissions/Grade (calificar entrega)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Grade(Guid id, decimal grade, string feedback)
+        {
+            var userInfo = GetCurrentUser();
+            if (userInfo == null || (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador"))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            try
+            {
+                var submission = await _context.Submissions
+                    .Include(s => s.Task)
+                    .Include(s => s.Student)
+                    .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
+
+                if (submission == null)
+                {
+                    return NotFound();
+                }
+
+                // Validar que la calificación esté dentro del rango permitido
+                var task = submission.Task;
+                if (grade < 0 || grade > (task?.MaxScore ?? 100))
+                {
+                    ModelState.AddModelError("", $"La calificación debe estar entre 0 y {task?.MaxScore ?? 100}");
+                    return View("Grade", submission);
+                }
+
+                // Guardar calificación anterior para auditoría
+                var oldGrade = submission.CurrentGrade;
+
+                // Actualizar calificación
+                submission.CurrentGrade = grade;
+                submission.Status = "Graded";
+
+                // Crear registro de Grade
+                var gradeRecord = new Grades
+                {
+                    Id = Guid.NewGuid(),
+                    SubmissionId = submission.Id,
+                    Score = grade,
+                    Feedback = feedback,
+                    GradedAt = DateTime.Now,
+                    GraderId = userInfo.UserId,
+                    IsSoftDeleted = false
+                };
+
+                _context.Grades.Add(gradeRecord);
+                await _context.SaveChangesAsync();
+
+                //  AUDITORÍA: Entrega calificada
+                await _auditService.LogAsync("SUBMISSION_GRADE", "Calificación", gradeRecord.Id,
+                    $"Profesor '{userInfo.Nombre}' calificó entrega de '{submission.Student?.UserName}' " +
+                    $"con {grade}/{task?.MaxScore}. Feedback: {feedback}");
+
+                TempData["Success"] = $"Calificación registrada exitosamente: {grade}/{task?.MaxScore}";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                //  AUDITORÍA: Error al calificar
+                await _auditService.LogAsync("SUBMISSION_GRADE_ERROR", "Calificación", id,
+                    $"Error al calificar entrega: {ex.Message}");
+
+                TempData["Error"] = $"Error al registrar la calificación: {ex.Message}";
+                return RedirectToAction("Grade", new { id });
+            }
+        }
+
+        // POST: Submissions/Reopen (reabrir entrega para nueva entrega)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Reopen(Guid id)
+        {
+            var userInfo = GetCurrentUser();
+            if (userInfo == null || (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador"))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            try
+            {
+                var submission = await _context.Submissions
+                    .Include(s => s.Task)
+                    .Include(s => s.Student)
+                    .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
+
+                if (submission == null)
+                {
+                    return NotFound();
+                }
+
+                // Reabrir entrega
+                submission.Status = "Submitted";
+                submission.CurrentGrade = null;
+
+                // AUDITORÍA: Entrega reabierta
+                await _auditService.LogAsync("SUBMISSION_REOPEN", "Entrega", submission.Id,
+                    $"Profesor '{userInfo.Nombre}' reabrió entrega de '{submission.Student?.UserName}' " +
+                    $"para tarea '{submission.Task?.Title}'");
+
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Entrega reabierta. El estudiante puede realizar una nueva entrega.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                // AUDITORÍA: Error al reabrir
+                await _auditService.LogAsync("SUBMISSION_REOPEN_ERROR", "Entrega", id,
+                    $"Error al reabrir entrega: {ex.Message}");
+
+                TempData["Error"] = $"Error al reabrir la entrega: {ex.Message}";
+                return RedirectToAction(nameof(Index));
+            }
+        }
 
         private UserVm GetCurrentUser()
         {
@@ -278,8 +491,6 @@ namespace Control_De_Tareas.Controllers
             return tasks;
         }
     }
-
- 
 
     public class TaskSelectVm
     {

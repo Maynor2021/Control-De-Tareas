@@ -1,6 +1,7 @@
 ﻿using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
+using Control_De_Tareas.Services; 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,10 +11,12 @@ namespace Control_De_Tareas.Controllers
     public class PeriodsController : Controller
     {
         private readonly ContextDB _context;
+        private readonly AuditService _auditService; 
 
-        public PeriodsController(ContextDB context)
+        public PeriodsController(ContextDB context, AuditService auditService)
         {
             _context = context;
+            _auditService = auditService; 
         }
 
         // GET: Periods
@@ -85,7 +88,7 @@ namespace Control_De_Tareas.Controllers
             return View(model);
         }
 
-        // POST: Periods/Create
+        // POST: Periods/Create 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(PeriodVm model)
@@ -135,6 +138,10 @@ namespace Control_De_Tareas.Controllers
             _context.Periods.Add(period);
             await _context.SaveChangesAsync();
 
+            //AUDITORÍA: Período creado
+            await _auditService.LogCreateAsync("Período", period.Id,
+                $"{model.Name} ({model.StartDate:dd/MM/yyyy} - {model.EndDate:dd/MM/yyyy})");
+
             TempData["Success"] = "Período creado exitosamente";
             return RedirectToAction(nameof(Index));
         }
@@ -170,7 +177,7 @@ namespace Control_De_Tareas.Controllers
             return View(model);
         }
 
-        // POST: Periods/Edit/5
+        // POST: Periods/Edit/5 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Guid id, PeriodVm model)
@@ -256,7 +263,7 @@ namespace Control_De_Tareas.Controllers
             return View(model);
         }
 
-        // POST: Periods/Delete/5
+        // POST: Periods/Delete/5 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(Guid id)
@@ -280,6 +287,10 @@ namespace Control_De_Tareas.Controllers
             period.IsActive = false;
 
             await _context.SaveChangesAsync();
+
+            // AUDITORÍA: Período eliminado
+            await _auditService.LogDeleteAsync("Período", period.Id,
+                $"{period.Name} ({period.StartDate:dd/MM/yyyy} - {period.EndDate:dd/MM/yyyy})");
 
             TempData["Success"] = "Período eliminado exitosamente";
             return RedirectToAction(nameof(Index));

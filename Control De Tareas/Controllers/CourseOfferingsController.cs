@@ -1,7 +1,7 @@
 ﻿using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
-using Control_De_Tareas.Services;
+using Control_De_Tareas.Services; 
 using Microsoft.AspNetCore.Http;
 using System.IO;
 using Microsoft.AspNetCore.Mvc;
@@ -16,12 +16,15 @@ namespace Control_De_Tareas.Controllers
         private readonly ContextDB _context;
         private readonly ILogger<CourseOfferingsController> _logger;
         private readonly IFileStorageService _fileStorageService;
+        private readonly AuditService _auditService; 
 
-        public CourseOfferingsController(ContextDB context, ILogger<CourseOfferingsController> logger, IFileStorageService fileStorageService)
+        public CourseOfferingsController(ContextDB context, ILogger<CourseOfferingsController> logger,
+            IFileStorageService fileStorageService, AuditService auditService)
         {
             _context = context;
             _logger = logger;
             _fileStorageService = fileStorageService;
+            _auditService = auditService; 
         }
 
         // GET: CourseOfferings/ListadoOfertas
@@ -102,7 +105,7 @@ namespace Control_De_Tareas.Controllers
             // Verificar permisos - Solo admin o profesor del curso
             var userRole = GetCurrentUserRole();
             var userId = GetCurrentUserId();
-            
+
             var offering = await _context.CourseOfferings
                 .Include(co => co.Course)
                 .Include(co => co.Professor)
@@ -204,7 +207,7 @@ namespace Control_De_Tareas.Controllers
 
             string userRole = "Estudiante";
             var currentUserId = GetCurrentUserId();
-            
+
             if (IsProfesorFromSession())
             {
                 userRole = "Profesor";
@@ -260,13 +263,13 @@ namespace Control_De_Tareas.Controllers
             // Verificar permisos
             var userRole = GetCurrentUserRole();
             var userId = GetCurrentUserId();
-            
+
             if (userRole == "Estudiante")
             {
                 // Verificar si el estudiante está inscrito
                 var isEnrolled = offering.Enrollments?
                     .Any(e => e.StudentId == userId && !e.IsSoftDeleted) ?? false;
-                
+
                 if (!isEnrolled)
                 {
                     TempData["Error"] = "No tienes acceso a este curso";
@@ -367,6 +370,10 @@ namespace Control_De_Tareas.Controllers
             _context.CourseOfferings.Add(offering);
             await _context.SaveChangesAsync();
 
+            //  AUDITORÍA: Oferta de curso creada
+            await _auditService.LogCreateAsync("OfertaCurso", offering.Id,
+                $"{model.Section} - {GetCourseName(model.CourseId)}");
+
             TempData["Success"] = "Oferta de curso creada exitosamente";
             return RedirectToAction(nameof(ListadoOfertas));
         }
@@ -443,6 +450,16 @@ namespace Control_De_Tareas.Controllers
                 return View(model);
             }
 
+            // Guardar valores antiguos para auditoría
+            var oldValues = new
+            {
+                CourseId = offering.CourseId,
+                ProfessorId = offering.ProfessorId,
+                PeriodId = offering.PeriodId,
+                Section = offering.Section,
+                IsActive = offering.IsActive
+            };
+
             offering.CourseId = model.CourseId;
             offering.ProfessorId = model.ProfessorId;
             offering.PeriodId = model.PeriodId;
@@ -450,6 +467,10 @@ namespace Control_De_Tareas.Controllers
             offering.IsActive = model.IsActive;
 
             await _context.SaveChangesAsync();
+
+            //  AUDITORÍA: Oferta de curso actualizada
+            await _auditService.LogUpdateAsync("OfertaCurso", offering.Id,
+                $"{model.Section} - {GetCourseName(model.CourseId)}");
 
             TempData["Success"] = "Oferta actualizada exitosamente";
             return RedirectToAction(nameof(ListadoOfertas));
@@ -502,6 +523,7 @@ namespace Control_De_Tareas.Controllers
 
             var offering = await _context.CourseOfferings
                 .Include(co => co.Enrollments)
+                .Include(co => co.Course)
                 .FirstOrDefaultAsync(co => co.Id == id && !co.IsSoftDeleted);
 
             if (offering == null) return NotFound();
@@ -517,6 +539,10 @@ namespace Control_De_Tareas.Controllers
 
             await _context.SaveChangesAsync();
 
+            //  AUDITORÍA: Oferta de curso eliminada
+            await _auditService.LogDeleteAsync("OfertaCurso", offering.Id,
+                $"{offering.Section} - {offering.Course?.Title ?? "Sin nombre"}");
+
             TempData["Success"] = "Oferta eliminada exitosamente";
             return RedirectToAction(nameof(ListadoOfertas));
         }
@@ -531,10 +557,11 @@ namespace Control_De_Tareas.Controllers
                 // Verificar permisos - Solo admin o profesor del curso
                 var userRole = GetCurrentUserRole();
                 var userId = GetCurrentUserId();
-                
+
                 var offering = await _context.CourseOfferings
+                    .Include(co => co.Course)
                     .FirstOrDefaultAsync(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
-                
+
                 if (offering == null)
                 {
                     TempData["Error"] = "No se encontró la oferta de curso";
@@ -571,12 +598,21 @@ namespace Control_De_Tareas.Controllers
                 _context.Enrollments.Add(enrollment);
                 await _context.SaveChangesAsync();
 
+                //  AUDITORÍA: Estudiante inscrito
+                await _auditService.LogAsync("ENROLL_CREATE", "Matrícula", enrollment.Id,
+                    $"Estudiante {GetStudentName(studentId)} inscrito en {offering.Course?.Title} - Sección {offering.Section}");
+
                 TempData["Success"] = "Estudiante inscrito exitosamente";
                 return RedirectToAction(nameof(Index), new { id = courseOfferingId });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error inscribiendo estudiante {StudentId} en oferta {CourseOfferingId}", studentId, courseOfferingId);
+
+                //  AUDITORÍA: Error al inscribir estudiante
+                await _auditService.LogAsync("ENROLL_CREATE_ERROR", "Matrícula", null,
+                    $"Error al inscribir estudiante {studentId} en oferta {courseOfferingId}: {ex.Message}");
+
                 TempData["Error"] = "Error al inscribir estudiante.";
                 return RedirectToAction(nameof(Index), new { id = courseOfferingId });
             }
@@ -592,10 +628,11 @@ namespace Control_De_Tareas.Controllers
                 // Verificar permisos - Solo admin o profesor del curso
                 var userRole = GetCurrentUserRole();
                 var userId = GetCurrentUserId();
-                
+
                 var offering = await _context.CourseOfferings
+                    .Include(co => co.Course)
                     .FirstOrDefaultAsync(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
-                
+
                 if (offering == null)
                 {
                     TempData["Error"] = "No se encontró la oferta de curso";
@@ -624,12 +661,21 @@ namespace Control_De_Tareas.Controllers
 
                 await _context.SaveChangesAsync();
 
+                //  AUDITORÍA: Estudiante desinscrito
+                await _auditService.LogAsync("ENROLL_DELETE", "Matrícula", enrollment.Id,
+                    $"Estudiante {GetStudentName(studentId)} desinscrito de {offering.Course?.Title} - Sección {offering.Section}");
+
                 TempData["Success"] = "Estudiante desinscrito exitosamente";
                 return RedirectToAction(nameof(Index), new { id = courseOfferingId });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error desinscribiendo estudiante {StudentId} de oferta {CourseOfferingId}", studentId, courseOfferingId);
+
+                //  AUDITORÍA: Error al desinscribir estudiante
+                await _auditService.LogAsync("ENROLL_DELETE_ERROR", "Matrícula", null,
+                    $"Error al desinscribir estudiante {studentId} de oferta {courseOfferingId}: {ex.Message}");
+
                 TempData["Error"] = "Error al desinscribir estudiante.";
                 return RedirectToAction(nameof(Index), new { id = courseOfferingId });
             }
@@ -669,6 +715,7 @@ namespace Control_De_Tareas.Controllers
 
                 var offering = await _context.CourseOfferings
                     .Include(co => co.Period)
+                    .Include(co => co.Course)
                     .FirstOrDefaultAsync(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
 
                 if (offering == null || !offering.IsActive)
@@ -694,11 +741,20 @@ namespace Control_De_Tareas.Controllers
                 _context.Enrollments.Add(enrollment);
                 await _context.SaveChangesAsync();
 
+                //  AUDITORÍA: Auto-matrícula de estudiante
+                await _auditService.LogAsync("ENROLL_SELF", "Matrícula", enrollment.Id,
+                    $"Estudiante {user.Nombre} se auto-matriculó en {offering.Course?.Title} - Sección {offering.Section}");
+
                 return Json(new { success = true, message = "Matrícula realizada exitosamente" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error en matrícula automática para oferta {CourseOfferingId}", courseOfferingId);
+
+                //  AUDITORÍA: Error en auto-matrícula
+                await _auditService.LogAsync("ENROLL_SELF_ERROR", "Matrícula", null,
+                    $"Error en auto-matrícula para oferta {courseOfferingId}: {ex.Message}");
+
                 return Json(new { success = false, message = "Error al realizar la matrícula: " + ex.Message });
             }
         }
@@ -709,6 +765,7 @@ namespace Control_De_Tareas.Controllers
         public async Task<IActionResult> ToggleStatus(Guid id)
         {
             var offering = await _context.CourseOfferings
+                .Include(co => co.Course)
                 .FirstOrDefaultAsync(co => co.Id == id && !co.IsSoftDeleted);
 
             if (offering == null) return NotFound();
@@ -716,19 +773,25 @@ namespace Control_De_Tareas.Controllers
             // Verificar permisos - Solo admin o profesor del curso
             var userRole = GetCurrentUserRole();
             var userId = GetCurrentUserId();
-            
+
             if (userRole != "Administrador" && offering.ProfessorId != userId)
             {
                 TempData["Error"] = "No tiene permisos para cambiar el estado de este curso";
                 return RedirectToAction(nameof(MisCursos));
             }
 
+            var oldStatus = offering.IsActive;
             offering.IsActive = !offering.IsActive;
             await _context.SaveChangesAsync();
 
+            //  AUDITORÍA: Estado de oferta cambiado
+            await _auditService.LogAsync("OFFERING_TOGGLE_STATUS", "OfertaCurso", offering.Id,
+                $"Oferta {offering.Course?.Title} - Sección {offering.Section} " +
+                $"cambió de {(oldStatus ? "Activa" : "Inactiva")} a {(offering.IsActive ? "Activa" : "Inactiva")}");
+
             var status = offering.IsActive ? "activada" : "desactivada";
             TempData["Success"] = $"Oferta {status} exitosamente";
-            
+
             // Redirigir según el rol
             if (userRole == "Administrador")
             {
@@ -782,7 +845,7 @@ namespace Control_De_Tareas.Controllers
             // Limpiar mensajes antiguos
             TempData.Remove("Success");
             TempData.Remove("Error");
-            
+
             var courseOffering = _context.CourseOfferings
                 .Include(c => c.Course)
                 .FirstOrDefault(c => c.Id == id);
@@ -795,15 +858,15 @@ namespace Control_De_Tareas.Controllers
             // Verificar permisos
             var userRole = GetCurrentUserRole();
             var userId = GetCurrentUserId();
-            
+
             if (userRole == "Estudiante")
             {
                 // Verificar si el estudiante está inscrito
                 var isEnrolled = _context.Enrollments
-                    .Any(e => e.CourseOfferingId == id && 
-                             e.StudentId == userId && 
+                    .Any(e => e.CourseOfferingId == id &&
+                             e.StudentId == userId &&
                              !e.IsSoftDeleted);
-                
+
                 if (!isEnrolled)
                 {
                     TempData["Error"] = "No tienes acceso a los documentos de este curso";
@@ -835,10 +898,11 @@ namespace Control_De_Tareas.Controllers
             // Verificar permisos - Solo profesor del curso o admin
             var userRole = GetCurrentUserRole();
             var userId = GetCurrentUserId();
-            
+
             var offering = await _context.CourseOfferings
+                .Include(co => co.Course)
                 .FirstOrDefaultAsync(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
-            
+
             if (offering == null)
             {
                 TempData["Error"] = "No se encontró el curso";
@@ -878,11 +942,20 @@ namespace Control_De_Tareas.Controllers
                 // Guardar archivo
                 await _fileStorageService.SaveCourseDocumentAsync(file, courseOfferingId, uniqueFileName);
 
+                //  AUDITORÍA: Documento subido
+                await _auditService.LogAsync("DOCUMENT_UPLOAD", "Documento", null,
+                    $"Documento '{file.FileName}' subido a {offering.Course?.Title} - Sección {offering.Section}");
+
                 TempData["Success"] = $"Documento '{file.FileName}' subido exitosamente.";
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error subiendo documento para curso {CourseOfferingId}", courseOfferingId);
+
+                //  AUDITORÍA: Error al subir documento
+                await _auditService.LogAsync("DOCUMENT_UPLOAD_ERROR", "Documento", null,
+                    $"Error al subir documento para oferta {courseOfferingId}: {ex.Message}");
+
                 TempData["Error"] = "Error al subir el archivo.";
             }
 
@@ -890,22 +963,22 @@ namespace Control_De_Tareas.Controllers
         }
 
         // GET: CourseOfferings/DownloadDocument
-        public IActionResult DownloadDocument(Guid courseOfferingId, string fileName)
+        public async Task<IActionResult> DownloadDocumentAsync(Guid courseOfferingId, string fileName)
         {
             try
             {
                 // Verificar permisos
                 var userRole = GetCurrentUserRole();
                 var userId = GetCurrentUserId();
-                
+
                 if (userRole == "Estudiante")
                 {
                     // Verificar si el estudiante está inscrito
                     var isEnrolled = _context.Enrollments
-                        .Any(e => e.CourseOfferingId == courseOfferingId && 
-                                 e.StudentId == userId && 
+                        .Any(e => e.CourseOfferingId == courseOfferingId &&
+                                 e.StudentId == userId &&
                                  !e.IsSoftDeleted);
-                    
+
                     if (!isEnrolled)
                     {
                         TempData["Error"] = "No tienes permisos para descargar este documento";
@@ -916,8 +989,9 @@ namespace Control_De_Tareas.Controllers
                 {
                     // Verificar si es el profesor del curso
                     var offering = _context.CourseOfferings
+                        .Include(co => co.Course)
                         .FirstOrDefault(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
-                    
+
                     if (offering?.ProfessorId != userId)
                     {
                         TempData["Error"] = "No tienes permisos para descargar este documento";
@@ -949,6 +1023,11 @@ namespace Control_De_Tareas.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error descargando documento {FileName}", fileName);
+
+                //  AUDITORÍA: Error al descargar documento
+                await _auditService.LogAsync("DOCUMENT_DOWNLOAD_ERROR", "Documento", null,
+                    $"Error al descargar documento {fileName}: {ex.Message}");
+
                 TempData["Error"] = "Error al descargar el archivo.";
                 return RedirectToAction("Documentos", new { id = courseOfferingId });
             }
@@ -957,15 +1036,16 @@ namespace Control_De_Tareas.Controllers
         // POST: CourseOfferings/DeleteDocument
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult DeleteDocument(Guid courseOfferingId, string fileName)
+        public async Task<IActionResult> DeleteDocument(Guid courseOfferingId, string fileName)
         {
             // Verificar permisos - Solo profesor del curso o admin
             var userRole = GetCurrentUserRole();
             var userId = GetCurrentUserId();
-            
-            var offering = _context.CourseOfferings
-                .FirstOrDefault(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
-            
+
+            var offering = await _context.CourseOfferings
+                .Include(co => co.Course)
+                .FirstOrDefaultAsync(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
+
             if (offering == null)
             {
                 TempData["Error"] = "No se encontró el curso";
@@ -984,6 +1064,10 @@ namespace Control_De_Tareas.Controllers
 
                 if (deleted)
                 {
+                    //  AUDITORÍA: Documento eliminado
+                    await _auditService.LogAsync("DOCUMENT_DELETE", "Documento", null,
+                        $"Documento '{fileName}' eliminado de {offering.Course?.Title} - Sección {offering.Section}");
+
                     TempData["Success"] = "Documento eliminado exitosamente.";
                 }
                 else
@@ -994,6 +1078,11 @@ namespace Control_De_Tareas.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error eliminando documento {FileName}", fileName);
+
+                //  AUDITORÍA: Error al eliminar documento
+                await _auditService.LogAsync("DOCUMENT_DELETE_ERROR", "Documento", null,
+                    $"Error al eliminar documento {fileName}: {ex.Message}");
+
                 TempData["Error"] = "Error al eliminar el archivo.";
             }
 
@@ -1090,6 +1179,20 @@ namespace Control_De_Tareas.Controllers
 
             var ext = Path.GetExtension(path).ToLowerInvariant();
             return types.ContainsKey(ext) ? types[ext] : "application/octet-stream";
+        }
+
+        private async Task<string> GetCourseName(Guid courseId)
+        {
+            var course = await _context.Courses
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+            return course?.Title ?? "Curso desconocido";
+        }
+
+        private async Task<string> GetStudentName(Guid studentId)
+        {
+            var student = await _context.Users
+                .FirstOrDefaultAsync(u => u.UserId == studentId);
+            return student?.UserName ?? "Estudiante desconocido";
         }
 
         #endregion

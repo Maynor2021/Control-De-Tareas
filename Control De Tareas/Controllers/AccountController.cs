@@ -1,6 +1,7 @@
 using Control_De_Tareas.Data;
 using Control_De_Tareas.Data.Entitys;
 using Control_De_Tareas.Models;
+using Control_De_Tareas.Services; 
 using Mapster;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -18,19 +19,19 @@ namespace Control_De_Tareas.Controllers
     {
         private readonly ContextDB _context;
         private readonly ILogger<AccountController> _logger;
+        private readonly AuditService _auditService; 
 
-        public AccountController(ContextDB context, ILogger<AccountController> logger)
+        public AccountController(ContextDB context, ILogger<AccountController> logger, AuditService auditService)
         {
             _context = context;
             _logger = logger;
+            _auditService = auditService; 
         }
 
         #region Utilidades
 
         private string GetMD5(string str)
         {
-            // Mantengo MD5 por compatibilidad con la base actual.
-            // Recomiendo migrar a PasswordHasher<T> o PBKDF2/BCrypt/Argon2 cuanto antes.
             using (var md5 = MD5.Create())
             {
                 var encoding = new ASCIIEncoding();
@@ -93,6 +94,10 @@ namespace Control_De_Tareas.Controllers
                     CookieAuthenticationDefaults.AuthenticationScheme,
                     new ClaimsPrincipal(claimsIdentity));
 
+                // AUDITORÍA: Login exitoso
+                await _auditService.LogAsync("LOGIN", "Usuario", user.UserId,
+                    $"Inicio de sesión exitoso: {user.Email}");
+
                 var modulosRoles = _context.RoleModules
                     .Where(rm => rm.IsSoftDeleted == false && rm.RoleId == user.Rol.RoleId)
                     .ProjectToType<RolModuloVM>()
@@ -146,6 +151,11 @@ namespace Control_De_Tareas.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error en Login");
+
+                //  AUDITORÍA: Login fallido
+                await _auditService.LogAsync("LOGIN_FAILED", "Usuario", null,
+                    $"Intento de login fallido para email: {usersV.Email}. Error: {ex.Message}");
+
                 ViewBag.Error = "Error al iniciar sesión: " + ex.Message;
                 return View(new UserVm());
             }
@@ -155,13 +165,10 @@ namespace Control_De_Tareas.Controllers
 
         #region Register (GET + POST) - SOLO ADMIN
 
-        // GET: carga roles para la vista (excepto Administrador)
         [Authorize(Roles = "Administrador")]
         [HttpGet]
         public IActionResult Register()
         {
-            // 🔒 SOLO ADMINISTRADORES pueden acceder al registro (Authorize lo protege)
-            // Carga roles disponibles (excepto Administrador)
             var roles = _context.Roles
                 .Where(r => r.IsSoftDeleted == false && r.RoleName != "Administrador")
                 .Select(r => new { r.RoleId, r.RoleName })
@@ -172,20 +179,17 @@ namespace Control_De_Tareas.Controllers
             return View();
         }
 
-        // POST: registro de usuario por administrador
         [Authorize(Roles = "Administrador")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(UserVm userVm, Guid roleId)
         {
-            // 🔒 SOLO ADMINISTRADORES pueden registrar usuarios (Authorize lo protege)
             try
             {
                 // Validaciones básicas
                 if (string.IsNullOrEmpty(userVm.Nombre))
                 {
                     ViewBag.Error = "El nombre es requerido";
-                    // Recargar roles para la vista
                     var rolesRecarga = _context.Roles
                         .Where(r => r.IsSoftDeleted == false && r.RoleName != "Administrador")
                         .Select(r => new { r.RoleId, r.RoleName })
@@ -220,7 +224,7 @@ namespace Control_De_Tareas.Controllers
                     return View(userVm);
                 }
 
-                // Validar que se seleccionó un rol válido
+                // Validar rol
                 var selectedRole = await _context.Roles
                     .FirstOrDefaultAsync(r => r.RoleId == roleId && r.IsSoftDeleted == false && r.RoleName != "Administrador");
 
@@ -235,8 +239,8 @@ namespace Control_De_Tareas.Controllers
                     return View(userVm);
                 }
 
-                // Obtener el ID del usuario administrador actual
-                Guid creatorId = Guid.Empty; // Valor por defecto
+                // Obtener ID del administrador actual
+                Guid creatorId = Guid.Empty;
                 var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
                 if (Guid.TryParse(currentUserId, out Guid parsedId))
@@ -245,8 +249,6 @@ namespace Control_De_Tareas.Controllers
                 }
                 else
                 {
-                    // Si no se puede obtener el ID del administrador actual, usar un valor por defecto
-                    // O buscar el ID del primer administrador
                     var adminUser = await _context.Users
                         .Include(u => u.Rol)
                         .FirstOrDefaultAsync(u => u.Rol.RoleName == "Administrador" && u.IsSoftDeleted == false);
@@ -257,7 +259,6 @@ namespace Control_De_Tareas.Controllers
                     }
                 }
 
-                // Determinar si es instructor basado en el rol
                 string instructorValue = selectedRole.RoleName == "Profesor" ? "Sí" : "No";
 
                 // Crear nuevo usuario
@@ -279,9 +280,12 @@ namespace Control_De_Tareas.Controllers
                 _context.Users.Add(newUser);
                 await _context.SaveChangesAsync();
 
+                //  AUDITORÍA: Usuario creado por administrador
+                await _auditService.LogAsync("USER_CREATE", "Usuario", newUser.UserId,
+                    $"Administrador creó usuario: {newUser.UserName} ({newUser.Email}) como {selectedRole.RoleName}");
+
                 ViewBag.Success = $"Usuario '{userVm.Nombre}' registrado exitosamente como {selectedRole.RoleName}";
 
-                // Recargar roles para la vista
                 var rolesFinal = _context.Roles
                     .Where(r => r.IsSoftDeleted == false && r.RoleName != "Administrador")
                     .Select(r => new { r.RoleId, r.RoleName })
@@ -295,7 +299,10 @@ namespace Control_De_Tareas.Controllers
             {
                 _logger.LogError(ex, "Error al registrar usuario");
 
-                // Recargar roles para la vista
+                //  AUDITORÍA: Error al crear usuario
+                await _auditService.LogAsync("USER_CREATE_ERROR", "Usuario", null,
+                    $"Error al crear usuario {userVm.Email}: {ex.Message}");
+
                 var rolesRecarga = _context.Roles
                     .Where(r => r.IsSoftDeleted == false && r.RoleName != "Administrador")
                     .Select(r => new { r.RoleId, r.RoleName })
@@ -316,13 +323,11 @@ namespace Control_De_Tareas.Controllers
         [HttpGet]
         public IActionResult ChangePassword()
         {
-            // Solo usuarios logueados pueden cambiar contraseña
             if (!User.Identity?.IsAuthenticated == true)
             {
                 return RedirectToAction("Login");
             }
 
-            // Obtener email del usuario actual
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
             ViewBag.Email = userEmail;
             ViewBag.Msg = TempData["Msg"];
@@ -336,7 +341,6 @@ namespace Control_De_Tareas.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CambiarContraseña(string CurrentPassword, string Password, string ConfirmPassword)
         {
-            // Solo usuarios logueados
             if (!User.Identity?.IsAuthenticated == true)
             {
                 return RedirectToAction("Login");
@@ -344,14 +348,12 @@ namespace Control_De_Tareas.Controllers
 
             try
             {
-                // 🔥 VALIDACIÓN EXTRA: Verificar que CurrentPassword no sea null
                 if (string.IsNullOrEmpty(CurrentPassword))
                 {
                     TempData["Msg"] = "Debes ingresar tu contraseña actual";
                     return RedirectToAction("ChangePassword");
                 }
 
-                // 1. Obtener usuario actual
                 var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
                 if (string.IsNullOrEmpty(userEmail))
                 {
@@ -368,50 +370,55 @@ namespace Control_De_Tareas.Controllers
                     return RedirectToAction("ChangePassword");
                 }
 
-                // 2. Verificar contraseña actual
                 string encryptedCurrentPassword = GetMD5(CurrentPassword);
                 if (user.PasswordHash.ToUpper() != encryptedCurrentPassword.ToUpper())
                 {
+                    //  AUDITORÍA: Intento fallido de cambio de contraseña
+                    await _auditService.LogAsync("PASSWORD_CHANGE_FAILED", "Usuario", user.UserId,
+                        "Contraseña actual incorrecta al intentar cambiar contraseña");
+
                     TempData["Msg"] = "La contraseña actual es incorrecta";
                     return RedirectToAction("ChangePassword");
                 }
 
-                // 3. Validar que las nuevas contraseñas coincidan
                 if (Password != ConfirmPassword)
                 {
                     TempData["Msg"] = "Las nuevas contraseñas no coinciden";
                     return RedirectToAction("ChangePassword");
                 }
 
-                // 4. Validar longitud mínima
                 if (string.IsNullOrEmpty(Password) || Password.Length < 6)
                 {
                     TempData["Msg"] = "La nueva contraseña debe tener al menos 6 caracteres";
                     return RedirectToAction("ChangePassword");
                 }
 
-                // 5. Encriptar la nueva contraseña con MD5
-                // Usa el mismo algoritmo que en el login
                 string encryptedPassword = GetMD5(Password);
 
-                // 6. Actualizar la contraseña
                 user.PasswordHash = encryptedPassword;
-                user.ModifieBy = user.UserId; // El usuario se modifica a sí mismo
+                user.ModifieBy = user.UserId;
 
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 
-                // 7. Cerrar sesión para que ingrese con la nueva contraseña
+                //  AUDITORÍA: Contraseña cambiada exitosamente
+                await _auditService.LogAsync("PASSWORD_CHANGE", "Usuario", user.UserId,
+                    "Contraseña cambiada exitosamente");
+
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 HttpContext.Session.Clear();
 
-                // 8. Mostrar mensaje de éxito
                 TempData["Success"] = "Contraseña cambiada exitosamente. Por favor, inicie sesión con su nueva contraseña.";
                 return RedirectToAction("Login");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al cambiar contraseña");
+
+                //  AUDITORÍA: Error al cambiar contraseña
+                await _auditService.LogAsync("PASSWORD_CHANGE_ERROR", "Usuario", null,
+                    $"Error al cambiar contraseña: {ex.Message}");
+
                 TempData["Msg"] = "Error al cambiar la contraseña: " + ex.Message;
                 return RedirectToAction("ChangePassword");
             }
@@ -423,6 +430,16 @@ namespace Control_De_Tareas.Controllers
 
         public async Task<IActionResult> Logout()
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            //  AUDITORÍA: Logout
+            if (Guid.TryParse(userId, out Guid userGuid))
+            {
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                await _auditService.LogAsync("LOGOUT", "Usuario", userGuid,
+                    $"Usuario {userName} cerró sesión");
+            }
+
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             HttpContext.Session.Clear();
             return RedirectToAction("Login", "Account");

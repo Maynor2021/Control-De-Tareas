@@ -12,10 +12,12 @@ namespace Control_De_Tareas.Controllers
     public class FileUploadController : Controller
     {
         private readonly IFileStorageService _fileStorageService;
+        private readonly AuditService _auditService;
 
-        public FileUploadController(IFileStorageService fileStorageService)
+        public FileUploadController(IFileStorageService fileStorageService, AuditService auditService)
         {
             _fileStorageService = fileStorageService;
+            _auditService = auditService;
         }
 
         // GET: FileUpload/Upload
@@ -25,7 +27,7 @@ namespace Control_De_Tareas.Controllers
             return View(new FileUploadVm());
         }
 
-        // POST: FileUpload/Upload
+        // POST: FileUpload/Upload 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Upload(FileUploadVm model)
@@ -54,6 +56,11 @@ namespace Control_De_Tareas.Controllers
                     uniqueFileName
                 );
 
+                //  AUDITORÍA DE SUBIDA
+                await _auditService.LogAsync("FILE_UPLOAD", "Archivo", null,
+                    $"Archivo '{model.File.FileName}' ({FormatFileSize(model.File.Length)}) " +
+                    $"subido a curso {model.CourseOfferingId}, tarea {model.TaskId}");
+
                 TempData["Success"] = $"Archivo '{model.File.FileName}' subido exitosamente.";
                 TempData["FileName"] = model.File.FileName;
                 TempData["FileSize"] = FormatFileSize(model.File.Length);
@@ -62,6 +69,10 @@ namespace Control_De_Tareas.Controllers
             }
             catch (Exception ex)
             {
+                //AUDITORÍA DE ERROR EN SUBIDA
+                await _auditService.LogAsync("FILE_UPLOAD_ERROR", "Archivo", null,
+                    $"Error al subir archivo '{model.File?.FileName}': {ex.Message}");
+
                 ModelState.AddModelError("", $"Error: {ex.Message}");
                 return View(model);
             }
@@ -69,7 +80,7 @@ namespace Control_De_Tareas.Controllers
 
         // GET: FileUpload/List
         [HttpGet]
-        public IActionResult List(Guid? courseOfferingId, Guid? taskId) // CAMBIADO de int? a Guid?
+        public IActionResult List(Guid? courseOfferingId, Guid? taskId)
         {
             var uploadsPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -139,9 +150,9 @@ namespace Control_De_Tareas.Controllers
             return View();
         }
 
-        // GET: FileUpload/DownloadByName
+        // GET: FileUpload/DownloadByName 
         [HttpGet]
-        public IActionResult DownloadByName(string fileName, Guid? courseOfferingId, Guid? taskId) // CAMBIADO de int? a Guid?
+        public IActionResult DownloadByName(string fileName, Guid? courseOfferingId, Guid? taskId)
         {
             try
             {
@@ -183,6 +194,59 @@ namespace Control_De_Tareas.Controllers
             }
         }
 
+        // POST: FileUpload/DeleteFile - ACCIÓN AUDITADA
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteFile(string fileName, Guid courseOfferingId, Guid taskId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(fileName))
+                {
+                    TempData["Error"] = "Nombre de archivo no válido.";
+                    return RedirectToAction(nameof(List));
+                }
+
+                string uploadsPath = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "uploads",
+                    $"courseOffering_{courseOfferingId}",
+                    $"task_{taskId}",
+                    fileName
+                );
+
+                if (!System.IO.File.Exists(uploadsPath))
+                {
+                    TempData["Error"] = "El archivo no existe o ya fue eliminado.";
+                    return RedirectToAction(nameof(List));
+                }
+
+                // Guardar información del archivo antes de eliminar
+                var fileInfo = new FileInfo(uploadsPath);
+                var fileSize = FormatFileSize(fileInfo.Length);
+
+                System.IO.File.Delete(uploadsPath);
+
+                // AUDITORÍA DE ELIMINACIÓN
+                await _auditService.LogAsync("FILE_DELETE", "Archivo", null,
+                    $"Archivo '{fileName}' ({fileSize}) eliminado de curso {courseOfferingId}, tarea {taskId}");
+
+                TempData["Success"] = $"Archivo '{fileName}' eliminado exitosamente.";
+                return RedirectToAction(nameof(List));
+            }
+            catch (Exception ex)
+            {
+                // AUDITORÍA DE ERROR EN ELIMINACIÓN
+                await _auditService.LogAsync("FILE_DELETE_ERROR", "Archivo", null,
+                    $"Error al eliminar archivo '{fileName}': {ex.Message}");
+
+                TempData["Error"] = $"Error al eliminar archivo: {ex.Message}";
+                return RedirectToAction(nameof(List));
+            }
+        }
+
+  
+
         private string FormatFileSize(long bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB" };
@@ -196,7 +260,7 @@ namespace Control_De_Tareas.Controllers
             return $"{len:0.##} {sizes[order]}";
         }
 
-        private Guid? ExtractCourseOfferingId(string path) // CAMBIADO de int? a Guid?
+        private Guid? ExtractCourseOfferingId(string path)
         {
             try
             {
@@ -205,7 +269,7 @@ namespace Control_De_Tareas.Controllers
                 if (courseOffering != null)
                 {
                     var idString = courseOffering.Replace("courseOffering_", "");
-                    if (Guid.TryParse(idString, out Guid id)) // CAMBIADO de int a Guid
+                    if (Guid.TryParse(idString, out Guid id))
                         return id;
                 }
             }
@@ -213,7 +277,7 @@ namespace Control_De_Tareas.Controllers
             return null;
         }
 
-        private Guid? ExtractTaskId(string path) // CAMBIADO de int? a Guid?
+        private Guid? ExtractTaskId(string path)
         {
             try
             {
@@ -222,7 +286,7 @@ namespace Control_De_Tareas.Controllers
                 if (task != null)
                 {
                     var idString = task.Replace("task_", "");
-                    if (Guid.TryParse(idString, out Guid id)) // CAMBIADO de int a Guid
+                    if (Guid.TryParse(idString, out Guid id))
                         return id;
                 }
             }
@@ -252,7 +316,7 @@ namespace Control_De_Tareas.Controllers
         public string FileSize { get; set; }
         public DateTime UploadDate { get; set; }
         public string FilePath { get; set; }
-        public Guid? CourseOfferingId { get; set; } // CAMBIADO de int? a Guid?
-        public Guid? TaskId { get; set; } // CAMBIADO de int? a Guid?
+        public Guid? CourseOfferingId { get; set; }
+        public Guid? TaskId { get; set; }
     }
 }

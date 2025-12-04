@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IFileStorageService, FileStorageService>();
-
+builder.Services.AddScoped<AuditService>();
 // Configuración de Mapster
 MapsterConfig.Configure();
 
