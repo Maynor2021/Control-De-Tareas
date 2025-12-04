@@ -12,6 +12,7 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddLogging();
 // Configuración de Mapster
 MapsterConfig.Configure();
 
