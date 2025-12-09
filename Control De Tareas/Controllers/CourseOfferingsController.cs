@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using Microsoft.AspNetCore.Antiforgery;
 
 namespace Control_De_Tareas.Controllers
 {
@@ -17,14 +18,20 @@ namespace Control_De_Tareas.Controllers
         private readonly ILogger<CourseOfferingsController> _logger;
         private readonly IFileStorageService _fileStorageService;
         private readonly AuditService _auditService;
+        private readonly IAntiforgery _antiforgery;
 
-        public CourseOfferingsController(ContextDB context, ILogger<CourseOfferingsController> logger,
-            IFileStorageService fileStorageService, AuditService auditService)
+        public CourseOfferingsController(
+            ContextDB context,
+            ILogger<CourseOfferingsController> logger,
+            IFileStorageService fileStorageService,
+            AuditService auditService,
+            IAntiforgery antiforgery)
         {
             _context = context;
             _logger = logger;
             _fileStorageService = fileStorageService;
             _auditService = auditService;
+            _antiforgery = antiforgery;
         }
 
         // ========== MÉTODOS PRINCIPALES ==========
@@ -88,12 +95,14 @@ namespace Control_De_Tareas.Controllers
                 PeriodEndDate = co.Period?.EndDate,
                 EnrolledStudentsCount = co.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0,
                 TasksCount = co.Tareas?.Count(t => !t.IsSoftDeleted) ?? 0,
-                IsActive = co.IsActive
+                IsActive = co.IsActive,
+                Status = CalculateStatus(co.Period?.StartDate, co.Period?.EndDate, co.IsActive)
             }).ToList();
 
             ViewBag.UserRole = userRole;
             return View(models);
         }
+
         // GET: CourseOfferings/CursosDisponibles
         public async Task<IActionResult> CursosDisponibles()
         {
@@ -144,10 +153,16 @@ namespace Control_De_Tareas.Controllers
                 EnrolledStudentsCount = co.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0,
                 TasksCount = co.Tareas?.Count(t => !t.IsSoftDeleted) ?? 0,
                 IsActive = co.IsActive,
-                CreatedAt = co.CreatedAt
+                CreatedAt = co.CreatedAt,
+                Status = CalculateStatus(co.Period?.StartDate, co.Period?.EndDate, co.IsActive)
             }).ToList();
 
             ViewBag.UserRole = "Estudiante";
+
+            // Agregar token anti-forgery para la vista
+            var tokens = _antiforgery.GetAndStoreTokens(HttpContext);
+            ViewBag.RequestToken = tokens.RequestToken;
+
             return View(models);
         }
 
@@ -199,7 +214,8 @@ namespace Control_De_Tareas.Controllers
                 PeriodEndDate = co.Period?.EndDate,
                 EnrolledStudentsCount = co.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0,
                 TasksCount = co.Tareas?.Count(t => !t.IsSoftDeleted) ?? 0,
-                AnnouncementsCount = co.Announcements?.Count(a => !a.IsSoftDeleted) ?? 0
+                AnnouncementsCount = co.Announcements?.Count(a => !a.IsSoftDeleted) ?? 0,
+                Status = CalculateStatus(co.Period?.StartDate, co.Period?.EndDate, co.IsActive)
             }).ToList();
 
             ViewBag.Periods = await _context.Periods
@@ -274,7 +290,8 @@ namespace Control_De_Tareas.Controllers
                 PeriodEndDate = offering.Period?.EndDate,
                 EnrolledStudentsCount = offering.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0,
                 TasksCount = offering.Tareas?.Count(t => !t.IsSoftDeleted) ?? 0,
-                AnnouncementsCount = offering.Announcements?.Count(a => !a.IsSoftDeleted) ?? 0
+                AnnouncementsCount = offering.Announcements?.Count(a => !a.IsSoftDeleted) ?? 0,
+                Status = CalculateStatus(offering.Period?.StartDate, offering.Period?.EndDate, offering.IsActive)
             };
 
             ViewBag.UserRole = userRole;
@@ -323,7 +340,8 @@ namespace Control_De_Tareas.Controllers
                 ProfessorName = offering.Professor?.UserName ?? "Sin asignar",
                 PeriodName = offering.Period?.Name ?? "Sin período",
                 Section = offering.Section,
-                EnrolledStudentsCount = offering.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0
+                EnrolledStudentsCount = offering.Enrollments?.Count(e => !e.IsSoftDeleted) ?? 0,
+                Status = CalculateStatus(offering.Period?.StartDate, offering.Period?.EndDate, offering.IsActive)
             };
 
             ViewBag.EnrolledStudents = offering.Enrollments
@@ -747,28 +765,53 @@ namespace Control_De_Tareas.Controllers
             }
         }
 
-        // POST: CourseOfferings/MatricularEstudiante (automatrícula)
+        // POST: CourseOfferings/MatricularEstudiante (automatrícula) - VERSIÓN CORREGIDA
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MatricularEstudiante(Guid courseOfferingId)
         {
             try
             {
+                _logger.LogInformation("Iniciando proceso de matrícula para oferta: {CourseOfferingId}", courseOfferingId);
+
                 var userSession = HttpContext.Session.GetString("UserSession");
                 if (string.IsNullOrEmpty(userSession))
                 {
-                    return Json(new { success = false, message = "Sesión no válida" });
+                    _logger.LogWarning("Sesión no válida al intentar matricular estudiante");
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Sesión no válida. Por favor, inicia sesión nuevamente."
+                    });
                 }
 
                 var userJson = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(userSession));
                 var user = JsonSerializer.Deserialize<UserVm>(userJson);
 
+                if (user == null)
+                {
+                    _logger.LogWarning("Usuario no encontrado en sesión");
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Usuario no encontrado. Por favor, inicia sesión nuevamente."
+                    });
+                }
+
+                _logger.LogInformation("Usuario intentando matricularse: {UserId} - {UserName}", user.UserId, user.Nombre);
+
                 // Verificar que sea estudiante
                 if (!IsEstudianteFromSession())
                 {
-                    return Json(new { success = false, message = "Solo los estudiantes pueden matricularse" });
+                    _logger.LogWarning("Usuario no es estudiante: {Rol}", user.Rol?.Nombre);
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Solo los estudiantes pueden matricularse en cursos."
+                    });
                 }
 
+                // Verificar si ya está inscrito
                 var existingEnrollment = await _context.Enrollments
                     .FirstOrDefaultAsync(e => e.CourseOfferingId == courseOfferingId &&
                                              e.StudentId == user.UserId &&
@@ -776,24 +819,65 @@ namespace Control_De_Tareas.Controllers
 
                 if (existingEnrollment != null)
                 {
-                    return Json(new { success = false, message = "Ya estás inscrito en este curso" });
+                    _logger.LogWarning("El estudiante ya está inscrito en este curso: {UserId} - {CourseOfferingId}",
+                        user.UserId, courseOfferingId);
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Ya estás inscrito en este curso."
+                    });
                 }
 
+                // Obtener información del curso
                 var offering = await _context.CourseOfferings
                     .Include(co => co.Period)
                     .Include(co => co.Course)
                     .FirstOrDefaultAsync(co => co.Id == courseOfferingId && !co.IsSoftDeleted);
 
-                if (offering == null || !offering.IsActive)
+                if (offering == null)
                 {
-                    return Json(new { success = false, message = "El curso no está disponible para matrícula" });
+                    _logger.LogWarning("Oferta de curso no encontrada: {CourseOfferingId}", courseOfferingId);
+                    return Json(new
+                    {
+                        success = false,
+                        message = "El curso no existe o ha sido eliminado."
+                    });
                 }
 
-                if (DateTime.Now.Date > offering.Period.EndDate.Date)
+                if (!offering.IsActive)
                 {
-                    return Json(new { success = false, message = "El período de matrícula ha finalizado" });
+                    _logger.LogWarning("Curso no activo: {CourseOfferingId}", courseOfferingId);
+                    return Json(new
+                    {
+                        success = false,
+                        message = "El curso no está disponible para matrícula en este momento."
+                    });
                 }
 
+                var today = DateTime.Now.Date;
+                if (today > offering.Period.EndDate.Date)
+                {
+                    _logger.LogWarning("Período finalizado: {CourseOfferingId} - {EndDate}",
+                        courseOfferingId, offering.Period.EndDate);
+                    return Json(new
+                    {
+                        success = false,
+                        message = "El período de matrícula para este curso ha finalizado."
+                    });
+                }
+
+                if (today < offering.Period.StartDate.Date)
+                {
+                    _logger.LogWarning("Período no iniciado: {CourseOfferingId} - {StartDate}",
+                        courseOfferingId, offering.Period.StartDate);
+                    return Json(new
+                    {
+                        success = false,
+                        message = "El período de matrícula para este curso aún no ha iniciado."
+                    });
+                }
+
+                // Crear la inscripción
                 var enrollment = new Enrollments
                 {
                     Id = Guid.NewGuid(),
@@ -807,11 +891,18 @@ namespace Control_De_Tareas.Controllers
                 _context.Enrollments.Add(enrollment);
                 await _context.SaveChangesAsync();
 
+                _logger.LogInformation("Matrícula exitosa: Estudiante {UserId} en curso {CourseOfferingId}",
+                    user.UserId, courseOfferingId);
+
                 // AUDITORÍA: Auto-matrícula de estudiante
                 await _auditService.LogAsync("ENROLL_SELF", "Matrícula", enrollment.Id,
                     $"Estudiante {user.Nombre} se auto-matriculó en {offering.Course?.Title} - Sección {offering.Section}");
 
-                return Json(new { success = true, message = "Matrícula realizada exitosamente" });
+                return Json(new
+                {
+                    success = true,
+                    message = "¡Matrícula exitosa! Te has inscrito en el curso correctamente."
+                });
             }
             catch (Exception ex)
             {
@@ -821,7 +912,11 @@ namespace Control_De_Tareas.Controllers
                 await _auditService.LogAsync("ENROLL_SELF_ERROR", "Matrícula", null,
                     $"Error en auto-matrícula para oferta {courseOfferingId}: {ex.Message}");
 
-                return Json(new { success = false, message = "Error al realizar la matrícula: " + ex.Message });
+                return Json(new
+                {
+                    success = false,
+                    message = "Error interno al procesar la matrícula. Por favor, intenta nuevamente."
+                });
             }
         }
 
@@ -998,7 +1093,7 @@ namespace Control_De_Tareas.Controllers
                 var memory = new MemoryStream();
                 using (var stream = new FileStream(filePath, FileMode.Open))
                 {
-                    stream.CopyTo(memory);
+                    await stream.CopyToAsync(memory);
                 }
                 memory.Position = 0;
 
@@ -1180,8 +1275,9 @@ namespace Control_De_Tareas.Controllers
                 var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserVm>(sesion);
                 return userInfo?.Rol?.Nombre ?? "Estudiante";
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error obteniendo rol del usuario");
                 return "Estudiante";
             }
         }
@@ -1199,8 +1295,9 @@ namespace Control_De_Tareas.Controllers
                 var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserVm>(sesion);
                 return userInfo?.UserId ?? Guid.Empty;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error obteniendo ID del usuario");
                 return Guid.Empty;
             }
         }
@@ -1263,6 +1360,24 @@ namespace Control_De_Tareas.Controllers
             var student = await _context.Users
                 .FirstOrDefaultAsync(u => u.UserId == studentId);
             return student?.UserName ?? "Estudiante desconocido";
+        }
+
+        private string CalculateStatus(DateTime? startDate, DateTime? endDate, bool isActive)
+        {
+            if (!isActive)
+                return "Inactivo";
+
+            if (!startDate.HasValue || !endDate.HasValue)
+                return "Indefinido";
+
+            var today = DateTime.Now.Date;
+
+            if (today < startDate.Value.Date)
+                return "Próximo";
+            else if (today >= startDate.Value.Date && today <= endDate.Value.Date)
+                return "En Curso";
+            else
+                return "Finalizado";
         }
 
         #endregion

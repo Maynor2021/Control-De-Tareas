@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace Control_De_Tareas.Models
 {
-
     public class CourseOfferingVm : IValidatableObject
     {
         public Guid Id { get; set; } // CAMBIADO de int a Guid
@@ -112,6 +112,7 @@ namespace Control_De_Tareas.Models
                 else
                     return "Finalizado";
             }
+            set { }
         }
 
         public bool CanEnroll
@@ -133,7 +134,6 @@ namespace Control_De_Tareas.Models
                 return Math.Round((decimal)EnrolledStudentsCount / MaxCapacity.Value * 100, 2);
             }
         }
-
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {

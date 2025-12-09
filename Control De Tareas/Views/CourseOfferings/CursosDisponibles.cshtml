@@ -1,7 +1,13 @@
 ﻿@model List<Control_De_Tareas.Models.CourseOfferingVm>
-
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
 @{
     ViewData["Title"] = "Cursos Disponibles para Matrícula";
+    Layout = "_Layout"; // Asegurar layout
+
+    // Obtener token anti-forgery
+    var tokens = Antiforgery.GetAndStoreTokens(Context);
+    var requestToken = tokens.RequestToken;
 }
 
 <div class="container-fluid py-4">
@@ -40,6 +46,9 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
+
+    <!-- Token Anti-Forgery oculto -->
+    @Html.AntiForgeryToken()
 
     <!-- Contador de cursos -->
     <div class="row mb-4">
@@ -227,37 +236,72 @@
         let currentCourseId = null;
         let currentCourseName = null;
 
+        // Función para obtener token anti-forgery
+        function getAntiForgeryToken() {
+            // Intentar obtener del formulario
+            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (tokenElement && tokenElement.value) {
+                return tokenElement.value;
+            }
+
+            // Intentar obtener de las cookies
+            const cookieToken = getCookie('XSRF-TOKEN');
+            if (cookieToken) {
+                return decodeURIComponent(cookieToken);
+            }
+
+            // Intentar obtener del header meta
+            const metaToken = document.querySelector('meta[name="__RequestVerificationToken"]');
+            if (metaToken && metaToken.content) {
+                return metaToken.content;
+            }
+
+            console.warn('No se encontró token anti-forgery');
+            return '';
+        }
+
+        // Función auxiliar para leer cookies
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
         // 1. Búsqueda en tiempo real
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase().trim();
-            const rows = document.querySelectorAll('#coursesTable tbody tr');
-            let visibleCount = 0;
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('#coursesTable tbody tr');
+                let visibleCount = 0;
 
-            rows.forEach(row => {
-                const courseName = row.getAttribute('data-course-name');
-                const courseCode = row.getAttribute('data-course-code');
-                const professor = row.getAttribute('data-professor');
+                rows.forEach(row => {
+                    const courseName = row.getAttribute('data-course-name') || '';
+                    const courseCode = row.getAttribute('data-course-code') || '';
+                    const professor = row.getAttribute('data-professor') || '';
 
-                const matches = courseName.includes(searchTerm) ||
-                               courseCode.includes(searchTerm) ||
-                               professor.includes(searchTerm);
+                    const matches = courseName.includes(searchTerm) ||
+                                   courseCode.includes(searchTerm) ||
+                                   professor.includes(searchTerm);
 
-                if (matches || searchTerm === '') {
-                    row.style.display = '';
-                    visibleCount++;
+                    if (matches || searchTerm === '') {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                // Mostrar/ocultar mensaje de "no resultados"
+                const noResults = document.getElementById('noResults');
+                if (visibleCount === 0 && searchTerm !== '') {
+                    noResults?.classList.remove('d-none');
                 } else {
-                    row.style.display = 'none';
+                    noResults?.classList.add('d-none');
                 }
             });
-
-            // Mostrar/ocultar mensaje de "no resultados"
-            const noResults = document.getElementById('noResults');
-            if (visibleCount === 0 && searchTerm !== '') {
-                noResults.classList.remove('d-none');
-            } else {
-                noResults.classList.add('d-none');
-            }
-        });
+        }
 
         // 2. Manejar clic en botón "Inscribirse"
         document.querySelectorAll('.enroll-btn').forEach(button => {
@@ -265,65 +309,152 @@
                 currentCourseId = this.getAttribute('data-course-id');
                 currentCourseName = this.getAttribute('data-course-name');
 
+                if (!currentCourseId || !currentCourseName) {
+                    alert('Error: No se pudo obtener la información del curso.');
+                    return;
+                }
+
                 // Actualizar mensaje del modal
-                document.getElementById('modalMessage').textContent =
-                    `¿Estás seguro de inscribirte en "${currentCourseName}"?`;
+                const modalMessage = document.getElementById('modalMessage');
+                if (modalMessage) {
+                    modalMessage.textContent = `¿Estás seguro de inscribirte en "${currentCourseName}"?`;
+                }
 
                 // Mostrar modal
-                const modal = new bootstrap.Modal(document.getElementById('enrollModal'));
-                modal.show();
+                const modalElement = document.getElementById('enrollModal');
+                if (modalElement) {
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                }
             });
         });
 
-        // 3. Confirmar inscripción
-        document.getElementById('confirmEnroll').addEventListener('click', async function() {
-            const button = this;
-            const originalText = button.innerHTML;
+        // 3. Confirmar inscripción - VERSIÓN CORREGIDA
+        const confirmEnrollBtn = document.getElementById('confirmEnroll');
+        if (confirmEnrollBtn) {
+            confirmEnrollBtn.addEventListener('click', async function() {
+                const button = this;
+                const originalText = button.innerHTML;
 
-            // Mostrar loading
-            button.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
-            button.disabled = true;
-
-            try {
-                // Obtener token anti-forgery
-                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-
-                // Enviar solicitud
-                const response = await fetch('@Url.Action("MatricularEstudiante", "CourseOfferings")', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'RequestVerificationToken': token
-                    },
-                    body: `courseOfferingId=${currentCourseId}`
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Mostrar mensaje de éxito
-                    alert(data.message);
-
-                    // Cerrar modal
-                    bootstrap.Modal.getInstance(document.getElementById('enrollModal')).hide();
-
-                    // Recargar la página después de 1 segundo
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1000);
-                } else {
-                    alert('Error: ' + data.message);
-                    button.innerHTML = originalText;
-                    button.disabled = false;
+                // Validar que tengamos courseId
+                if (!currentCourseId) {
+                    alert('Error: No se seleccionó ningún curso.');
+                    return;
                 }
 
-            } catch (error) {
-                alert('Error de conexión. Intenta nuevamente.');
-                console.error('Error:', error);
-                button.innerHTML = originalText;
-                button.disabled = false;
+                // Mostrar loading
+                button.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+                button.disabled = true;
+
+                try {
+                    // Obtener token anti-forgery
+                    const token = getAntiForgeryToken();
+
+                    if (!token) {
+                        throw new Error('No se pudo obtener el token de seguridad. Recarga la página e intenta nuevamente.');
+                    }
+
+                    // Crear form data
+                    const formData = new FormData();
+                    formData.append('courseOfferingId', currentCourseId);
+                    formData.append('__RequestVerificationToken', token);
+
+                    // Enviar solicitud
+                    const response = await fetch('@Url.Action("MatricularEstudiante", "CourseOfferings")', {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': token
+                        },
+                        body: new URLSearchParams({
+                            courseOfferingId: currentCourseId,
+                            __RequestVerificationToken: token
+                        })
+                    });
+
+                    // Verificar respuesta
+                    if (!response.ok) {
+                        throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Mostrar mensaje de éxito
+                        showToast('success', data.message);
+
+                        // Cerrar modal
+                        const modalElement = document.getElementById('enrollModal');
+                        if (modalElement) {
+                            const modal = bootstrap.Modal.getInstance(modalElement);
+                            if (modal) {
+                                modal.hide();
+                            }
+                        }
+
+                        // Recargar la página después de 1.5 segundos
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        throw new Error(data.message || 'Error desconocido');
+                    }
+
+                } catch (error) {
+                    console.error('Error en matrícula:', error);
+                    showToast('error', error.message || 'Error de conexión. Intenta nuevamente.');
+
+                    // Restaurar botón
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+
+                    // Cerrar modal si hay error
+                    const modalElement = document.getElementById('enrollModal');
+                    if (modalElement) {
+                        const modal = bootstrap.Modal.getInstance(modalElement);
+                        if (modal) {
+                            modal.hide();
+                        }
+                    }
+                }
+            });
+        }
+
+        // Función para mostrar notificaciones tipo toast
+        function showToast(type, message) {
+            // Crear contenedor si no existe
+            let toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toast-container';
+                toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                document.body.appendChild(toastContainer);
             }
-        });
+
+            // Crear toast
+            const toastId = 'toast-' + Date.now();
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-bg-${type} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+            // Mostrar toast
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+            toast.show();
+
+            // Remover del DOM después de ocultarse
+            toastElement.addEventListener('hidden.bs.toast', function () {
+                this.remove();
+            });
+        }
 
         // 4. Inicializar tooltips
         document.addEventListener('DOMContentLoaded', function() {
@@ -332,26 +463,28 @@
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
         });
+
+        // 5. Agregar estilos CSS adicionales para los toasts
+        const style = document.createElement('style');
+        style.textContent = `
+            .toast-container {
+                z-index: 9999;
+            }
+            .enroll-btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+            #coursesTable tbody tr:hover {
+                background-color: rgba(0, 123, 255, 0.05);
+            }
+            .card {
+                border: none;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .card-header {
+                border-bottom: 2px solid #dee2e6;
+            }
+        `;
+        document.head.appendChild(style);
     </script>
-
-    <style>
-        /* Estilos adicionales */
-        .enroll-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        #coursesTable tbody tr:hover {
-            background-color: rgba(0, 123, 255, 0.05);
-        }
-
-        .card {
-            border: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-header {
-            border-bottom: 2px solid #dee2e6;
-        }
-    </style>
 }
