@@ -41,14 +41,24 @@ namespace Control_De_Tareas.Controllers
 
             IQueryable<Submissions> query = _context.Submissions
                 .Include(s => s.Task)
+                    .ThenInclude(t => t.CourseOffering)  // Agregado para filtro
                 .Include(s => s.Student)
                 .Include(s => s.SubmissionFiles)
                 .Include(s => s.Grades)
                     .ThenInclude(g => g.Grader)
                 .Where(s => !s.IsSoftDeleted);
 
+            // 🔐 Si es estudiante, solo sus entregas
             if (userInfo.Rol?.Nombre == "Estudiante")
+            {
                 query = query.Where(s => s.StudentId == userInfo.UserId);
+            }
+            // 🔐 Si es profesor, solo entregas de sus cursos
+            else if (userInfo.Rol?.Nombre == "Profesor")
+            {
+                query = query.Where(s => s.Task.CourseOffering.ProfessorId == userInfo.UserId);
+            }
+            // Administrador ve todas las entregas sin filtro
 
             var submissions = await query
                 .OrderByDescending(s => s.SubmittedAt)
@@ -84,11 +94,23 @@ namespace Control_De_Tareas.Controllers
             if (submission == null)
                 return NotFound();
 
-            // 🔐 Seguridad: estudiante solo ve su entrega
+            // Seguridad: estudiante solo ve su entrega
             if (userInfo.Rol?.Nombre == "Estudiante" && submission.StudentId != userInfo.UserId)
             {
                 TempData["Error"] = "No tienes permisos para ver esta entrega.";
                 return RedirectToAction("Index");
+            }
+
+            // Seguridad: profesor solo ve entregas de sus cursos
+            if (userInfo.Rol?.Nombre == "Profesor")
+            {
+                var esProfesorDelCurso = submission.Task?.CourseOffering?.ProfessorId == userInfo.UserId;
+                if (!esProfesorDelCurso)
+                {
+                    var cursoNombre = submission.Task?.CourseOffering?.Course?.Title ?? "curso desconocido";
+                    TempData["Error"] = $"No tienes permisos para ver esta entrega. Esta entrega pertenece al curso '{cursoNombre}'.";
+                    return RedirectToAction("Index");
+                }
             }
 
             return View(submission);
@@ -243,6 +265,130 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
+        // DELETE ENTREGA
+        // ============================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            _logger.LogInformation("=== INICIANDO ELIMINACIÓN DE ENTREGA ===");
+            _logger.LogInformation("ID de entrega: {SubmissionId}", id);
+
+            try
+            {
+                var userInfo = GetCurrentUser();
+                if (userInfo == null)
+                {
+                    _logger.LogWarning("Usuario no autenticado intentando eliminar");
+                    return RedirectToAction("Login", "Account");
+                }
+
+                _logger.LogInformation("Usuario: {Nombre} ({Rol})", userInfo.Nombre, userInfo.Rol?.Nombre);
+
+                // Solo profesores y administradores pueden eliminar entregas
+                if (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador")
+                {
+                    TempData["Error"] = "No tienes permisos para eliminar entregas.";
+                    _logger.LogWarning("Usuario sin permisos intentando eliminar entrega");
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var submission = await _context.Submissions
+                    .Include(s => s.Task)
+                        .ThenInclude(t => t.CourseOffering)
+                            .ThenInclude(co => co.Course)  // Agregado para obtener nombre del curso
+                    .Include(s => s.Student)
+                    .Include(s => s.SubmissionFiles)
+                    .Include(s => s.Grades)
+                    .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
+
+                if (submission == null)
+                {
+                    TempData["Error"] = "La entrega no existe o ya fue eliminada.";
+                    _logger.LogWarning("Entrega no encontrada: {SubmissionId}", id);
+                    return RedirectToAction(nameof(Index));
+                }
+
+                _logger.LogInformation("Entrega encontrada: Estudiante={StudentId}, Tarea={TaskTitle}",
+                    submission.StudentId, submission.Task?.Title);
+
+                // 🔐 Verificar que el profesor sea del curso correspondiente
+                if (userInfo.Rol?.Nombre == "Profesor")
+                {
+                    var esProfesorDelCurso = submission.Task?.CourseOffering?.ProfessorId == userInfo.UserId;
+                    if (!esProfesorDelCurso)
+                    {
+                        // ✅ MEJORAR EL MENSAJE DE ERROR
+                        var cursoNombre = submission.Task?.CourseOffering?.Course?.Title ?? "curso desconocido";
+                        var estudianteNombre = submission.Student?.UserName ?? "estudiante";
+                        var tareaTitulo = submission.Task?.Title ?? "tarea";
+
+                        TempData["Error"] = $"No tienes permisos para eliminar esta entrega. " +
+                                          $"Esta entrega pertenece a la tarea '{tareaTitulo}' del curso '{cursoNombre}', " +
+                                          $"y tú no eres el profesor de ese curso.";
+
+                        _logger.LogWarning("Profesor {UserId} no es del curso {CourseId} - {CourseName}",
+                            userInfo.UserId, submission.Task?.CourseOfferingId, cursoNombre);
+                        return RedirectToAction(nameof(Index));
+                    }
+                }
+
+                _logger.LogInformation("Iniciando soft delete de entrega...");
+
+                // Soft delete de la entrega
+                submission.IsSoftDeleted = true;
+
+                // Soft delete de archivos relacionados
+                int archivosEliminados = 0;
+                foreach (var file in submission.SubmissionFiles)
+                {
+                    // Opcional: eliminar archivos físicos del servidor
+                    try
+                    {
+                        if (System.IO.File.Exists(file.FilePath))
+                        {
+                            System.IO.File.Delete(file.FilePath);
+                            archivosEliminados++;
+                            _logger.LogInformation("Archivo físico eliminado: {FilePath}", file.FilePath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "No se pudo eliminar el archivo físico: {FilePath}", file.FilePath);
+                    }
+
+                    file.IsSoftDeleted = true;
+                }
+
+                // Soft delete de calificaciones
+                int calificacionesEliminadas = 0;
+                foreach (var grade in submission.Grades)
+                {
+                    grade.IsSoftDeleted = true;
+                    calificacionesEliminadas++;
+                }
+
+                await _context.SaveChangesAsync();
+
+                await _auditService.LogAsync("SUBMISSION_DELETE", "Entrega", submission.Id,
+                    $"Entrega eliminada por {userInfo.Nombre}. Archivos: {archivosEliminados}, Calificaciones: {calificacionesEliminadas}");
+
+                _logger.LogInformation("=== ELIMINACIÓN EXITOSA ===");
+                _logger.LogInformation("Archivos eliminados: {ArchivosEliminados}", archivosEliminados);
+                _logger.LogInformation("Calificaciones eliminadas: {CalificacionesEliminadas}", calificacionesEliminadas);
+
+                TempData["Success"] = "✅ Entrega eliminada correctamente.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ERROR CRÍTICO eliminando entrega {SubmissionId}", id);
+                TempData["Error"] = $"Error al eliminar la entrega: {ex.Message}";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // ============================
         // REVIEW POR TAREA (S3-14)
         // ============================
         [HttpGet]
@@ -263,6 +409,17 @@ namespace Control_De_Tareas.Controllers
 
             if (task == null)
                 return NotFound();
+
+            // Si es profesor, verificar que sea su curso
+            if (userInfo.Rol?.Nombre == "Profesor")
+            {
+                var esProfesorDelCurso = task.CourseOffering.ProfessorId == userInfo.UserId;
+                if (!esProfesorDelCurso)
+                {
+                    TempData["Error"] = $"No tienes permisos para revisar esta tarea. Esta tarea pertenece al curso '{task.CourseOffering.Course?.Title}'.";
+                    return RedirectToAction("Index", "Tareas");
+                }
+            }
 
             var submissions = await _context.Submissions
                 .Include(s => s.Student)
@@ -298,12 +455,25 @@ namespace Control_De_Tareas.Controllers
             }
 
             var submission = await _context.Submissions
-                .Include(s => s.Student)
                 .Include(s => s.Task)
+                    .ThenInclude(t => t.CourseOffering)
+                .Include(s => s.Student)
                 .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
 
             if (submission == null)
                 return NotFound();
+
+            // Si es profesor, verificar que sea su curso
+            if (userInfo.Rol?.Nombre == "Profesor")
+            {
+                var esProfesorDelCurso = submission.Task?.CourseOffering?.ProfessorId == userInfo.UserId;
+                if (!esProfesorDelCurso)
+                {
+                    var cursoNombre = submission.Task?.CourseOffering?.Course?.Title ?? "curso desconocido";
+                    TempData["Error"] = $"No tienes permisos para calificar esta entrega. Esta entrega pertenece al curso '{cursoNombre}'.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
 
             submission.CurrentGrade = grade;
             submission.Status = "Calificada";
@@ -358,6 +528,7 @@ namespace Control_De_Tareas.Controllers
                     .Include(f => f.Submission)
                         .ThenInclude(s => s.Task)
                             .ThenInclude(t => t.CourseOffering)
+                                .ThenInclude(co => co.Course)
                     .FirstOrDefaultAsync(f => f.Id == fileId && !f.IsSoftDeleted);
 
                 if (submissionFile == null)
@@ -370,7 +541,7 @@ namespace Control_De_Tareas.Controllers
                 _logger.LogInformation("StudentId: {StudentId}", submissionFile.Submission?.StudentId);
                 _logger.LogInformation("TaskId: {TaskId}", submissionFile.Submission?.TaskId);
 
-                // 🔐 Verificar permisos de seguridad
+                // Verificar permisos de seguridad
                 var userRole = userInfo.Rol?.Nombre;
                 var userId = userInfo.UserId;
 
@@ -402,8 +573,9 @@ namespace Control_De_Tareas.Controllers
 
                     if (task.CourseOffering.ProfessorId != userId)
                     {
-                        _logger.LogWarning("Profesor no es del curso. Acceso denegado.");
-                        TempData["Error"] = "Solo el profesor de este curso puede descargar las entregas.";
+                        var cursoNombre = task.CourseOffering.Course?.Title ?? "curso desconocido";
+                        _logger.LogWarning("Profesor no es del curso {CourseName}. Acceso denegado.", cursoNombre);
+                        TempData["Error"] = $"Solo el profesor del curso '{cursoNombre}' puede descargar estas entregas.";
                         return RedirectToAction("Index");
                     }
 
@@ -523,10 +695,24 @@ namespace Control_De_Tareas.Controllers
                 return RedirectToAction("Login", "Account");
 
             var submission = await _context.Submissions
+                .Include(s => s.Task)
+                    .ThenInclude(t => t.CourseOffering)
                 .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
 
             if (submission == null)
                 return NotFound();
+
+            // Si es profesor, verificar que sea su curso
+            if (userInfo.Rol?.Nombre == "Profesor")
+            {
+                var esProfesorDelCurso = submission.Task?.CourseOffering?.ProfessorId == userInfo.UserId;
+                if (!esProfesorDelCurso)
+                {
+                    var cursoNombre = submission.Task?.CourseOffering?.Course?.Title ?? "curso desconocido";
+                    TempData["Error"] = $"No tienes permisos para reabrir esta entrega. Esta entrega pertenece al curso '{cursoNombre}'.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
 
             submission.Status = "Submitted";
             submission.CurrentGrade = null;
@@ -581,34 +767,34 @@ namespace Control_De_Tareas.Controllers
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
 
             var mimeTypes = new Dictionary<string, string>
-    {
-        {".pdf", "application/pdf"},
-        {".doc", "application/msword"},
-        {".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-        {".txt", "text/plain"},
-        {".rtf", "application/rtf"},
-        {".jpg", "image/jpeg"},
-        {".jpeg", "image/jpeg"},
-        {".png", "image/png"},
-        {".gif", "image/gif"},
-        {".bmp", "image/bmp"},
-        {".zip", "application/zip"},
-        {".rar", "application/x-rar-compressed"},
-        {".7z", "application/x-7z-compressed"},
-        {".xls", "application/vnd.ms-excel"},
-        {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-        {".ppt", "application/vnd.ms-powerpoint"},
-        {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
-        {".csv", "text/csv"},
-        {".html", "text/html"},
-        {".htm", "text/html"},
-        {".xml", "application/xml"},
-        {".json", "application/json"},
-        {".mp4", "video/mp4"},
-        {".mp3", "audio/mpeg"},
-        {".wav", "audio/wav"},
-        {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
-    };
+            {
+                {".pdf", "application/pdf"},
+                {".doc", "application/msword"},
+                {".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+                {".txt", "text/plain"},
+                {".rtf", "application/rtf"},
+                {".jpg", "image/jpeg"},
+                {".jpeg", "image/jpeg"},
+                {".png", "image/png"},
+                {".gif", "image/gif"},
+                {".bmp", "image/bmp"},
+                {".zip", "application/zip"},
+                {".rar", "application/x-rar-compressed"},
+                {".7z", "application/x-7z-compressed"},
+                {".xls", "application/vnd.ms-excel"},
+                {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+                {".ppt", "application/vnd.ms-powerpoint"},
+                {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+                {".csv", "text/csv"},
+                {".html", "text/html"},
+                {".htm", "text/html"},
+                {".xml", "application/xml"},
+                {".json", "application/json"},
+                {".mp4", "video/mp4"},
+                {".mp3", "audio/mpeg"},
+                {".wav", "audio/wav"},
+                {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
+            };
 
             if (mimeTypes.ContainsKey(extension))
             {
@@ -621,7 +807,7 @@ namespace Control_De_Tareas.Controllers
         }
     }
 
-        public class TaskSelectVm
+    public class TaskSelectVm
     {
         public Guid Id { get; set; }
         public string Title { get; set; }

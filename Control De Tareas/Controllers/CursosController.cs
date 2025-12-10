@@ -34,12 +34,21 @@ namespace Control_De_Tareas.Controllers
                 .Include(co => co.Enrollments)
                 .Where(co => !co.IsSoftDeleted);
 
-            // Filtrar según el rol
+            // Filtrar según el rol - CORREGIDO
             if (userRole == "Profesor")
             {
-                query = query.Where(co => co.ProfessorId == userId);
+                // Profesores: Solo cursos que imparten Y que están activos
+                query = query.Where(co => co.ProfessorId == userId && co.IsActive);
             }
-            // Estudiantes ven TODOS los cursos (no filtramos)
+            else if (userRole == "Estudiante")
+            {
+                // Estudiantes: Solo cursos en los que están inscritos Y que están activos
+                query = query.Where(co => co.IsActive &&
+                                       co.Enrollments.Any(e => e.StudentId == userId &&
+                                                             !e.IsSoftDeleted &&
+                                                             e.Status == "Active"));
+            }
+            // Administradores pueden ver todo (activos e inactivos)
 
             var cursos = await query
                 .Select(co => new
@@ -50,14 +59,14 @@ namespace Control_De_Tareas.Controllers
                     Period = co.Period,
                     EnrollmentCount = co.Enrollments.Count(e => !e.IsSoftDeleted)
                 })
-                .OrderByDescending(x => x.CourseOffering.IsActive)
+                .OrderByDescending(x => x.CourseOffering.IsActive) // Activos primero
                 .ThenBy(x => x.Course.Title)
                 .ToListAsync();
 
             var cursoDtos = cursos.Select(x => new CursoDto
             {
                 Id = x.CourseOffering.Id,  // ID del CourseOffering
-                CursoId = x.CourseOffering.CourseId, // ID del Course base - CORREGIDO
+                CursoId = x.CourseOffering.CourseId, // ID del Course base
                 Codigo = x.Course.Code ?? "",
                 Nombre = x.Course.Title,
                 Descripcion = x.Course.Description ?? "",

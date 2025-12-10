@@ -63,18 +63,22 @@ namespace Control_De_Tareas.Controllers
                 .Include(co => co.Tareas)
                 .AsQueryable();
 
+            // En el método MisCursos(), en la parte donde filtra según rol:
             string userRole = "Estudiante";
             var currentUserId = GetCurrentUserId();
 
             if (IsProfesorFromSession())
             {
                 userRole = "Profesor";
-                query = query.Where(co => co.ProfessorId == currentUserId);
+                query = query.Where(co => co.ProfessorId == currentUserId && co.IsActive); // Agregar && co.IsActive
             }
             else if (IsEstudianteFromSession())
             {
                 userRole = "Estudiante";
-                query = query.Where(co => co.Enrollments.Any(e => e.StudentId == currentUserId && !e.IsSoftDeleted));
+                query = query.Where(co => co.IsActive && // Agregar co.IsActive
+                    co.Enrollments.Any(e => e.StudentId == currentUserId &&
+                        !e.IsSoftDeleted &&
+                            e.Status == "Active"));
             }
 
             var offerings = await query
