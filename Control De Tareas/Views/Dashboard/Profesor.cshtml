@@ -14,7 +14,6 @@
     <!-- ================= TARJETAS SUPERIORES ================= -->
     <div class="row g-4 mb-4">
 
-        <!-- Mis Cursos -->
         <div class="col-md-4">
             <div class="card border-0 shadow-sm p-3 h-100">
                 <div class="text-muted small">Mis Cursos</div>
@@ -23,7 +22,6 @@
             </div>
         </div>
 
-        <!-- Tareas Activas -->
         <div class="col-md-4">
             <div class="card border-0 shadow-sm p-3 h-100">
                 <div class="text-muted small">Tareas Activas</div>
@@ -32,7 +30,6 @@
             </div>
         </div>
 
-        <!-- Por calificar -->
         <div class="col-md-4">
             <div class="card border-0 shadow-sm p-3 h-100">
                 <div class="text-muted small">Por Calificar</div>
@@ -43,10 +40,9 @@
 
     </div>
 
-    <!-- =================== ACCIONES + PRÓXIMAS ENTREGAS =================== -->
+    <!-- ================= ACCIONES + PRÓXIMAS ENTREGAS ================= -->
     <div class="row g-4 mb-4">
 
-        <!-- Acciones rápidas -->
         <div class="col-lg-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 pt-3">
@@ -55,7 +51,8 @@
 
                 <div class="card-body d-grid gap-3">
 
-                    <a asp-controller="CourseOfferings" asp-action="Index"
+                    <!-- ✅ AHORA VA A TAREAS -->
+                    <a asp-controller="Tareas" asp-action="Index"
                        class="btn btn-primary btn-lg">
                         Ver Mis Cursos
                     </a>
@@ -65,7 +62,8 @@
                         Crear Nueva Tarea
                     </a>
 
-                    <a asp-controller="Grades" asp-action="Index"
+                    <!-- ✅ AHORA VA A SUBMISSIONS -->
+                    <a asp-controller="Submissions" asp-action="Index"
                        class="btn btn-outline-secondary btn-lg">
                         Calificar Entregas
                     </a>
@@ -91,19 +89,10 @@
                             {
                                 var days = (e.DueDate.Date - DateTime.Now.Date).Days;
 
-                                string badge = days switch
-                                {
-                                    <= 0 => "Hoy",
-                                    1 => "Mañana",
-                                    _ => $"{days} días"
-                                };
-
-                                string badgeClass = days switch
-                                {
-                                    <= 0 => "bg-danger text-white",
-                                    1 => "bg-warning text-dark",
-                                    _ => "bg-success text-white"
-                                };
+                                string badge = days <= 0 ? "Hoy" : days == 1 ? "Mañana" : $"{days} días";
+                                string badgeClass = days <= 0 ? "bg-danger text-white"
+                                : days == 1 ? "bg-warning text-dark"
+                                : "bg-success text-white";
 
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <div>
@@ -129,10 +118,10 @@
 
     </div>
 
-    <!-- =================== CURSOS Y TAREAS =================== -->
+    <!-- ================= CURSOS Y TAREAS ================= -->
+
     <div class="row g-4">
 
-        <!-- Cursos asignados -->
         <div class="col-lg-6">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0 pt-3">
@@ -152,8 +141,8 @@
                                         <div class="small text-muted">Sección: @c.Seccion</div>
                                     </div>
 
-                                    <a asp-controller="CourseOfferings" asp-action="Details"
-                                       asp-route-id="@c.Id"
+                                    <!-- ✅ VA A TAREAS -->
+                                    <a asp-controller="Tareas" asp-action="Index"
                                        class="btn btn-outline-secondary btn-sm">
                                         Ver
                                     </a>
@@ -170,7 +159,7 @@
             </div>
         </div>
 
-        <!-- Tareas por calificar -->
+        <!-- ✅ TAREAS POR CALIFICAR -->
         <div class="col-lg-6">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0 pt-3">
@@ -193,7 +182,8 @@
                                         </div>
                                     </div>
 
-                                    <a asp-controller="Grades" asp-action="GradeTask"
+                                    <!-- ✅ AHORA VA AL REVIEW REAL -->
+                                    <a asp-controller="Submissions" asp-action="Review"
                                        asp-route-taskId="@t.Id"
                                        class="btn btn-primary btn-sm">
                                         Calificar

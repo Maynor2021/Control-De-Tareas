@@ -62,13 +62,16 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
+
+                        <!-- ✅ BOTÓN CORREGIDO -->
                         <div class="col-md-4">
-                            <a asp-controller="Users" asp-action="Index"
+                            <a asp-controller="CourseOfferings" asp-action="Index"
                                class="btn btn-primary w-100 py-3">
-                                <i class="bi bi-people me-2"></i>
-                                Gestionar Usuarios
+                                <i class="bi bi-collection me-2"></i>
+                                Gestionar Oferta de Cursos
                             </a>
                         </div>
+
                         <div class="col-md-4">
                             <a asp-controller="Cursos" asp-action="Index"
                                class="btn btn-success w-100 py-3">
@@ -76,6 +79,7 @@
                                 Gestionar Cursos
                             </a>
                         </div>
+
                         <div class="col-md-4">
                             <a asp-controller="Audit" asp-action="Index"
                                class="btn btn-info w-100 py-3">
@@ -83,6 +87,7 @@
                                 Ver Registros de Actividad
                             </a>
                         </div>
+
                     </div>
                 </div>
             </div>
