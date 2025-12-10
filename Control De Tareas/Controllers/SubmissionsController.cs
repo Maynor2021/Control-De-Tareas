@@ -40,6 +40,7 @@ namespace Control_De_Tareas.Controllers
                 .Include(s => s.Student)
                 .Include(s => s.SubmissionFiles)
                 .Include(s => s.Grades)
+                    .ThenInclude(g => g.Grader) // ← AÑADIDO: Incluir quien calificó
                 .Where(s => !s.IsSoftDeleted);
 
             if (userInfo.Rol?.Nombre == "Estudiante")
@@ -73,6 +74,7 @@ namespace Control_De_Tareas.Controllers
                 .Include(s => s.Student)
                 .Include(s => s.SubmissionFiles)
                 .Include(s => s.Grades)
+                    .ThenInclude(g => g.Grader) // ← AÑADIDO: Incluir quien calificó
                 .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
 
             if (submission == null)
@@ -259,6 +261,7 @@ namespace Control_De_Tareas.Controllers
                 .Include(s => s.Student)
                 .Include(s => s.SubmissionFiles)
                 .Include(s => s.Grades)
+                    .ThenInclude(g => g.Grader) // ← AÑADIDO: Incluir quien calificó
                 .Where(s => s.TaskId == taskId && !s.IsSoftDeleted)
                 .OrderBy(s => s.Student.UserName)
                 .ToListAsync();

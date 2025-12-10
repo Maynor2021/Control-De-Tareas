@@ -58,12 +58,54 @@
                 }
             </div>
 
-            <!-- COMENTARIO -->
+            <!-- COMENTARIO DEL ESTUDIANTE -->
             <div class="mb-4">
                 <h6 class="text-muted">Comentario del estudiante</h6>
                 <div class="p-3 bg-light rounded-3 shadow-sm">
                     @(string.IsNullOrEmpty(Model.Comments) ? "Sin comentarios." : Model.Comments)
                 </div>
+            </div>
+
+            <!-- NUEVO: COMENTARIOS DEL PROFESOR -->
+            <div class="mb-4">
+                <h6 class="text-muted">Retroalimentación del profesor</h6>
+
+                @if (Model.Grades != null && Model.Grades.Any())
+                {
+                    var latestGrade = Model.Grades.OrderByDescending(g => g.GradedAt).FirstOrDefault();
+
+                    if (!string.IsNullOrEmpty(latestGrade?.Feedback))
+                    {
+                        <div class="p-3 bg-light rounded-3 shadow-sm border-start border-3 border-primary">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="fw-bold text-primary">
+                                    <i class="bi bi-chat-square-text"></i>
+                                    Comentario del profesor:
+                                </span>
+                                <small class="text-muted">
+                                    @latestGrade.GradedAt.ToString("dd/MM/yyyy HH:mm")
+                                </small>
+                            </div>
+                            <p class="mb-0">@latestGrade.Feedback</p>
+
+                            @if (latestGrade.Grader != null)
+                            {
+                                <small class="text-muted mt-2 d-block">
+                                    <i class="bi bi-person"></i>
+                                    Calificado por: @latestGrade.Grader.UserName
+                                </small>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No hay comentarios del profesor aún.</p>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted">No hay comentarios del profesor aún.</p>
+                }
             </div>
 
             <!-- ARCHIVOS -->

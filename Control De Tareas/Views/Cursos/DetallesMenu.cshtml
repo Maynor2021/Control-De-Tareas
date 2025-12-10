@@ -119,18 +119,59 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <p class="card-text">Administra las tareas del curso.</p>
+                        <p class="card-text">
+                            @if (isEstudiante)
+                            {
+                                <span>Ver y entregar tus tareas en este curso.</span>
+                            }
+                            else if (isProfesor)
+                            {
+                                <span>Ver y gestionar tareas de este curso.</span>
+                            }
+                            else
+                            {
+                                <span>Administra las tareas del curso.</span>
+                            }
+                        </p>
                         <div class="d-grid gap-2">
-                            <a href="#" class="btn btn-outline-primary">
-                                <i class="fas fa-eye me-1"></i>Ver Tareas
+                            <!-- Enlace CORREGIDO que filtra por este curso específico -->
+                            <a href="@Url.Action("TareasEstudiantes", "Tareas", new { courseOfferingId = Model.Id })"
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-eye me-1"></i>
+                                @if (isEstudiante)
+                                {
+                                    <span>Ver Mis Tareas</span>
+                                }
+                                else if (isProfesor)
+                                {
+                                    <span>Ver Tareas del Curso</span>
+                                }
+                                else
+                                {
+                                    <span>Ver Tareas</span>
+                                }
                             </a>
+
+                            <!-- Solo profesores y administradores pueden crear tareas -->
                             @if (isAdmin || isProfesor)
                             {
-                                <a href="#" class="btn btn-outline-success">
+                                <a href="@Url.Action("Crear", "Tareas")"
+                                   class="btn btn-outline-success">
                                     <i class="fas fa-plus me-1"></i>Nueva Tarea
                                 </a>
                             }
                         </div>
+
+                        <!-- Información adicional para estudiantes -->
+                        @if (isEstudiante)
+                        {
+                            <div class="mt-3 pt-3 border-top">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Verás solo las tareas de este curso específico
+                                </small>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>

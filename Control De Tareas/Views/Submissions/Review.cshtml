@@ -67,6 +67,8 @@
                             {
                                 var grade = s.CurrentGrade;
                                 var isGraded = grade.HasValue;
+                                var latestGrade = s.Grades?.OrderByDescending(g => g.GradedAt).FirstOrDefault();
+                                var previousFeedback = latestGrade?.Feedback ?? "";
 
                                 <tr>
                                     <!-- ESTUDIANTE -->
@@ -114,7 +116,8 @@
                                                 <input type="text"
                                                        name="feedback"
                                                        class="form-control form-control-sm"
-                                                       placeholder="Comentario..." />
+                                                       placeholder="Comentario..."
+                                                       value="@previousFeedback" />
                                             </div>
 
                                             <!-- ESTADO -->
