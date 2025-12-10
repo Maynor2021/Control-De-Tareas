@@ -49,12 +49,18 @@
                         <ul class="list-group list-group-flush">
                             @foreach (var c in Model.CursosInscritos)
                             {
-                                <li class="list-group-item d-flex justify-content-between">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <div>
                                         <div class="fw-semibold">@c.Curso</div>
                                         <div class="small text-muted">Sección: @c.Seccion</div>
                                     </div>
-                                    <button class="btn btn-outline-secondary btn-sm">Ver</button>
+
+                                    <!-- ✅ VER → VA A TODAS SUS TAREAS -->
+                                    <a asp-controller="Tareas"
+                                       asp-action="TareasEstudiantes"
+                                       class="btn btn-outline-primary btn-sm">
+                                        Ver
+                                    </a>
                                 </li>
                             }
                         </ul>
@@ -67,10 +73,8 @@
             </div>
         </div>
 
-        <!-- TAREAS PENDIENTES + CALIFICACIONES -->
+        <!-- TAREAS PENDIENTES -->
         <div class="col-lg-7 mb-4">
-
-            <!-- TAREAS PENDIENTES -->
             <div class="card shadow-sm mb-3">
                 <div class="card-header">
                     <strong>Tareas pendientes (@Model.TareasPendientes?.Count)</strong>
@@ -93,7 +97,15 @@
                                         <td>@t.TituloTarea</td>
                                         <td>@t.FechaEntrega.ToString("dd/MM/yyyy")</td>
                                         <td class="text-end">
-                                            <button class="btn btn-primary btn-sm">Entregar</button>
+
+                                            <!-- ✅ ENTREGAR → Submissions/Create -->
+                                            <a asp-controller="Submissions"
+                                               asp-action="Create"
+                                               asp-route-taskId="@t.TareaId"
+                                               class="btn btn-primary btn-sm">
+                                                Entregar
+                                            </a>
+
                                         </td>
                                     </tr>
                                 }
