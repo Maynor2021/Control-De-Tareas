@@ -120,12 +120,16 @@
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <span>
                                     <i class="bi bi-paperclip"></i> @file.FileName
+                                    <small class="text-muted d-block">
+                                        Subido: @file.UploadedAt.ToString("dd/MM/yyyy HH:mm")
+                                    </small>
                                 </span>
-                                <a class="btn btn-sm btn-outline-primary"
-                                   href="@Url.Content(file.FilePath)"
-                                   target="_blank">
+                                <button class="btn btn-sm btn-outline-primary download-btn" 
+                                        data-fileid="@file.Id" 
+                                        data-filename="@file.FileName"
+                                        title="Descargar @file.FileName">
                                     <i class="bi bi-download"></i> Descargar
-                                </a>
+                                </button>
                             </li>
                         }
                     </ul>
@@ -172,6 +176,81 @@
     </div>
 </div>
 
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Manejar descargas con JavaScript para mejor control
+            document.querySelectorAll('.download-btn').forEach(function(button) {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const fileId = this.getAttribute('data-fileid');
+                    const fileName = this.getAttribute('data-filename');
+                    
+                    // Mostrar indicador de carga
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="bi bi-hourglass-split"></i> Descargando...';
+                    this.disabled = true;
+                    
+                    // Crear URL de descarga
+                    const url = '@Url.Action("DownloadFile", "Submissions")?fileId=' + fileId;
+                    
+                    // Crear iframe oculto para la descarga
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = url;
+                    
+                    iframe.onload = function() {
+                        // Restaurar botón después de 2 segundos
+                        setTimeout(function() {
+                            button.innerHTML = originalText;
+                            button.disabled = false;
+                        }, 2000);
+                    };
+                    
+                    document.body.appendChild(iframe);
+                    
+                    // También intentar con fetch para manejar errores
+                    fetch(url)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Error en la descarga');
+                            }
+                            return response.blob();
+                        })
+                        .then(blob => {
+                            // Crear enlace temporal para descarga
+                            const downloadUrl = window.URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = downloadUrl;
+                            link.download = fileName;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(downloadUrl);
+                        })
+                        .catch(error => {
+                            console.error('Error descargando archivo:', error);
+                            alert('Error al descargar el archivo. Por favor, intente nuevamente.');
+                            
+                            // Restaurar botón
+                            button.innerHTML = originalText;
+                            button.disabled = false;
+                        });
+                });
+            });
+            
+            // También manejar clics en enlaces de descarga tradicionales (por si acaso)
+            document.querySelectorAll('a[href*="DownloadFile"]').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    // Permitir que el navegador maneje la descarga normalmente
+                    console.log('Iniciando descarga tradicional...');
+                });
+            });
+        });
+    </script>
+}
+
 <style>
     .premium-card {
         transition: all .25s ease-in-out;
@@ -181,4 +260,18 @@
             transform: translateY(-2px);
             box-shadow: 0 15px 35px rgba(0,0,0,.2);
         }
+    
+    .download-btn {
+        transition: all 0.2s ease;
+    }
+    
+    .download-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .download-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
 </style>

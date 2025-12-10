@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Control_De_Tareas.Controllers
 {
@@ -18,16 +19,19 @@ namespace Control_De_Tareas.Controllers
         private readonly ContextDB _context;
         private readonly IFileStorageService _fileStorageService;
         private readonly AuditService _auditService;
+        private readonly ILogger<SubmissionsController> _logger;
 
-        public SubmissionsController(ContextDB context, IFileStorageService fileStorageService, AuditService auditService)
+        public SubmissionsController(ContextDB context, IFileStorageService fileStorageService,
+            AuditService auditService, ILogger<SubmissionsController> logger)
         {
             _context = context;
             _fileStorageService = fileStorageService;
             _auditService = auditService;
+            _logger = logger;
         }
 
         // ============================
-        // ✅ INDEX
+        // INDEX
         // ============================
         public async Task<IActionResult> Index()
         {
@@ -40,7 +44,7 @@ namespace Control_De_Tareas.Controllers
                 .Include(s => s.Student)
                 .Include(s => s.SubmissionFiles)
                 .Include(s => s.Grades)
-                    .ThenInclude(g => g.Grader) // ← AÑADIDO: Incluir quien calificó
+                    .ThenInclude(g => g.Grader)
                 .Where(s => !s.IsSoftDeleted);
 
             if (userInfo.Rol?.Nombre == "Estudiante")
@@ -58,7 +62,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // ✅ DETAILS (OJITO AZUL)
+        // DETAILS (OJITO AZUL)
         // ============================
         [HttpGet]
         public async Task<IActionResult> Details(Guid id)
@@ -74,7 +78,7 @@ namespace Control_De_Tareas.Controllers
                 .Include(s => s.Student)
                 .Include(s => s.SubmissionFiles)
                 .Include(s => s.Grades)
-                    .ThenInclude(g => g.Grader) // ← AÑADIDO: Incluir quien calificó
+                    .ThenInclude(g => g.Grader)
                 .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
 
             if (submission == null)
@@ -82,13 +86,16 @@ namespace Control_De_Tareas.Controllers
 
             // 🔐 Seguridad: estudiante solo ve su entrega
             if (userInfo.Rol?.Nombre == "Estudiante" && submission.StudentId != userInfo.UserId)
-                return Forbid();
+            {
+                TempData["Error"] = "No tienes permisos para ver esta entrega.";
+                return RedirectToAction("Index");
+            }
 
             return View(submission);
         }
 
         // ============================
-        // ✅ CREATE GET
+        // CREATE GET
         // ============================
         [HttpGet]
         public async Task<IActionResult> Create(Guid? taskId)
@@ -115,7 +122,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // ✅ CREATE POST
+        // CREATE POST
         // ============================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -236,7 +243,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // ✅ REVIEW POR TAREA (S3-14)
+        // REVIEW POR TAREA (S3-14)
         // ============================
         [HttpGet]
         public async Task<IActionResult> Review(Guid taskId)
@@ -261,7 +268,7 @@ namespace Control_De_Tareas.Controllers
                 .Include(s => s.Student)
                 .Include(s => s.SubmissionFiles)
                 .Include(s => s.Grades)
-                    .ThenInclude(g => g.Grader) // ← AÑADIDO: Incluir quien calificó
+                    .ThenInclude(g => g.Grader)
                 .Where(s => s.TaskId == taskId && !s.IsSoftDeleted)
                 .OrderBy(s => s.Student.UserName)
                 .ToListAsync();
@@ -273,7 +280,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // ✅ CALIFICAR ENTREGA
+        // CALIFICAR ENTREGA
         // ============================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -324,7 +331,217 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // ✅ HELPERS
+        // DESCARGAR ARCHIVO DE ENTREGA
+        // ============================
+        [HttpGet]
+        public async Task<IActionResult> DownloadFile(Guid fileId)
+        {
+            try
+            {
+                _logger.LogInformation("=== INICIANDO DESCARGA DE ARCHIVO ===");
+                _logger.LogInformation("FileId: {FileId}", fileId);
+
+                var userInfo = GetCurrentUser();
+                if (userInfo == null)
+                {
+                    _logger.LogWarning("Usuario no autenticado");
+                    return RedirectToAction("Login", "Account");
+                }
+
+                _logger.LogInformation("Usuario: {Nombre} ({Rol})", userInfo.Nombre, userInfo.Rol?.Nombre);
+                _logger.LogInformation("UserId: {UserId}", userInfo.UserId);
+
+                // Obtener el archivo de entrega con información relacionada
+                var submissionFile = await _context.SubmissionFiles
+                    .Include(f => f.Submission)
+                        .ThenInclude(s => s.Student)
+                    .Include(f => f.Submission)
+                        .ThenInclude(s => s.Task)
+                            .ThenInclude(t => t.CourseOffering)
+                    .FirstOrDefaultAsync(f => f.Id == fileId && !f.IsSoftDeleted);
+
+                if (submissionFile == null)
+                {
+                    _logger.LogError("Archivo de entrega no encontrado en la base de datos");
+                    return NotFound("El archivo no existe o ha sido eliminado.");
+                }
+
+                _logger.LogInformation("Archivo encontrado: {FileName}", submissionFile.FileName);
+                _logger.LogInformation("StudentId: {StudentId}", submissionFile.Submission?.StudentId);
+                _logger.LogInformation("TaskId: {TaskId}", submissionFile.Submission?.TaskId);
+
+                // 🔐 Verificar permisos de seguridad
+                var userRole = userInfo.Rol?.Nombre;
+                var userId = userInfo.UserId;
+
+                // Estudiante: solo puede descargar sus propios archivos
+                if (userRole == "Estudiante")
+                {
+                    if (submissionFile.Submission?.StudentId != userId)
+                    {
+                        _logger.LogWarning("Estudiante intentando descargar archivo ajeno");
+                        TempData["Error"] = "No tienes permisos para descargar este archivo.";
+                        return RedirectToAction("Index");
+                    }
+                    _logger.LogInformation("Estudiante autorizado - es su propia entrega");
+                }
+
+                // Profesor: puede descargar archivos de sus cursos
+                if (userRole == "Profesor")
+                {
+                    var task = submissionFile.Submission?.Task;
+                    if (task == null || task.CourseOffering == null)
+                    {
+                        _logger.LogError("No se pudo obtener información del curso");
+                        TempData["Error"] = "Error al verificar permisos.";
+                        return RedirectToAction("Index");
+                    }
+
+                    _logger.LogInformation("Profesor del curso: {ProfessorId}", task.CourseOffering.ProfessorId);
+                    _logger.LogInformation("Profesor actual: {UserId}", userId);
+
+                    if (task.CourseOffering.ProfessorId != userId)
+                    {
+                        _logger.LogWarning("Profesor no es del curso. Acceso denegado.");
+                        TempData["Error"] = "Solo el profesor de este curso puede descargar las entregas.";
+                        return RedirectToAction("Index");
+                    }
+
+                    _logger.LogInformation("Profesor autorizado para descargar");
+                }
+
+                // Administrador: siempre tiene acceso
+                if (userRole == "Administrador")
+                {
+                    _logger.LogInformation("Administrador autorizado");
+                }
+
+                if (userRole != "Administrador" && userRole != "Profesor" && userRole != "Estudiante")
+                {
+                    _logger.LogWarning("Rol desconocido: {UserRole}", userRole);
+                    TempData["Error"] = "No tienes permisos para descargar este archivo.";
+                    return RedirectToAction("Index");
+                }
+
+                // Verificar si el archivo existe físicamente
+                var filePath = submissionFile.FilePath;
+                _logger.LogInformation("FilePath original: {FilePath}", filePath);
+
+                // Si FilePath es relativo, convertirlo a absoluto
+                if (!Path.IsPathRooted(filePath))
+                {
+                    var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+
+                    // Remover ~/ o / del inicio si existe
+                    if (filePath.StartsWith("~/") || filePath.StartsWith("/"))
+                    {
+                        filePath = filePath.TrimStart('~', '/');
+                    }
+
+                    filePath = Path.Combine(webRootPath, filePath);
+                }
+
+                _logger.LogInformation("FilePath absoluto: {FilePath}", filePath);
+
+                if (!System.IO.File.Exists(filePath))
+                {
+                    _logger.LogError("ARCHIVO NO ENCONTRADO EN EL SERVIDOR: {FilePath}", filePath);
+
+                    // Verificar si la carpeta existe
+                    var directory = Path.GetDirectoryName(filePath);
+                    _logger.LogInformation("Directorio: {Directory}", directory);
+
+                    if (directory != null && Directory.Exists(directory))
+                    {
+                        _logger.LogInformation("El directorio existe pero el archivo no");
+                        var filesInDirectory = Directory.GetFiles(directory);
+                        _logger.LogInformation("Archivos en el directorio: {Count}", filesInDirectory.Length);
+                        foreach (var file in filesInDirectory)
+                        {
+                            _logger.LogInformation(" - {File}", Path.GetFileName(file));
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogError("El directorio no existe: {Directory}", directory);
+                    }
+
+                    return NotFound($"El archivo '{submissionFile.FileName}' no existe en el servidor. Ruta: {filePath}");
+                }
+
+                // Obtener información del archivo
+                var fileInfo = new FileInfo(filePath);
+                _logger.LogInformation("Archivo encontrado. Tamaño: {Size} bytes", fileInfo.Length);
+                _logger.LogInformation("Última modificación: {LastWriteTime}", fileInfo.LastWriteTime);
+
+                // Leer el archivo
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+                var contentType = GetContentType(submissionFile.FileName);
+
+                _logger.LogInformation("Content-Type: {ContentType}", contentType);
+                _logger.LogInformation("Tamaño leído: {Bytes} bytes", fileBytes.Length);
+
+                // Registrar auditoría
+                await _auditService.LogAsync("SUBMISSION_FILE_DOWNLOAD", "ArchivoEntrega", submissionFile.Id,
+                    $"Archivo descargado: {submissionFile.FileName} por {userInfo.Nombre} ({userRole})");
+
+                _logger.LogInformation("=== DESCARGA EXITOSA ===");
+
+                // Forzar descarga en lugar de vista previa
+                var contentDisposition = new System.Net.Mime.ContentDisposition
+                {
+                    FileName = submissionFile.FileName,
+                    Inline = false  // Esto fuerza la descarga en lugar de abrir en el navegador
+                };
+                Response.Headers.Add("Content-Disposition", contentDisposition.ToString());
+
+                return File(fileBytes, contentType);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ERROR CRÍTICO descargando archivo {FileId}", fileId);
+
+                // Registrar error en auditoría
+                await _auditService.LogAsync("SUBMISSION_FILE_DOWNLOAD_ERROR", "ArchivoEntrega", fileId,
+                    $"Error al descargar archivo: {ex.Message}");
+
+                TempData["Error"] = $"Error al descargar el archivo: {ex.Message}";
+                return RedirectToAction("Index");
+            }
+        }
+
+        // ============================
+        // REABRIR ENTREGA
+        // ============================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Reopen(Guid id)
+        {
+            var userInfo = GetCurrentUser();
+            if (userInfo == null ||
+                (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador"))
+                return RedirectToAction("Login", "Account");
+
+            var submission = await _context.Submissions
+                .FirstOrDefaultAsync(s => s.Id == id && !s.IsSoftDeleted);
+
+            if (submission == null)
+                return NotFound();
+
+            submission.Status = "Submitted";
+            submission.CurrentGrade = null;
+
+            await _context.SaveChangesAsync();
+
+            await _auditService.LogAsync("SUBMISSION_REOPEN", "Entrega", submission.Id,
+                "Entrega reabierta para recalificación");
+
+            TempData["Success"] = "✅ Entrega reabierta correctamente.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // ============================
+        // HELPERS
         // ============================
         private UserVm GetCurrentUser()
         {
@@ -355,9 +572,56 @@ namespace Control_De_Tareas.Controllers
                     CourseName = t.CourseOffering.Course.Title
                 }).ToListAsync();
         }
+
+        // ============================
+        // OBTENER CONTENT TYPE
+        // ============================
+        private string GetContentType(string fileName)
+        {
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+
+            var mimeTypes = new Dictionary<string, string>
+    {
+        {".pdf", "application/pdf"},
+        {".doc", "application/msword"},
+        {".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+        {".txt", "text/plain"},
+        {".rtf", "application/rtf"},
+        {".jpg", "image/jpeg"},
+        {".jpeg", "image/jpeg"},
+        {".png", "image/png"},
+        {".gif", "image/gif"},
+        {".bmp", "image/bmp"},
+        {".zip", "application/zip"},
+        {".rar", "application/x-rar-compressed"},
+        {".7z", "application/x-7z-compressed"},
+        {".xls", "application/vnd.ms-excel"},
+        {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+        {".ppt", "application/vnd.ms-powerpoint"},
+        {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+        {".csv", "text/csv"},
+        {".html", "text/html"},
+        {".htm", "text/html"},
+        {".xml", "application/xml"},
+        {".json", "application/json"},
+        {".mp4", "video/mp4"},
+        {".mp3", "audio/mpeg"},
+        {".wav", "audio/wav"},
+        {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
+    };
+
+            if (mimeTypes.ContainsKey(extension))
+            {
+                return mimeTypes[extension];
+            }
+
+            // Si no se encuentra, usar genérico
+            _logger.LogWarning("Extensión no reconocida: {Extension}, usando application/octet-stream", extension);
+            return "application/octet-stream";
+        }
     }
 
-    public class TaskSelectVm
+        public class TaskSelectVm
     {
         public Guid Id { get; set; }
         public string Title { get; set; }
