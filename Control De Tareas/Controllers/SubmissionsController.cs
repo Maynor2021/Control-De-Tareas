@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Hosting;
 
 namespace Control_De_Tareas.Controllers
 {
@@ -20,14 +21,17 @@ namespace Control_De_Tareas.Controllers
         private readonly IFileStorageService _fileStorageService;
         private readonly AuditService _auditService;
         private readonly ILogger<SubmissionsController> _logger;
+        private readonly IWebHostEnvironment _webHostEnvironment; // AÑADIDO
 
         public SubmissionsController(ContextDB context, IFileStorageService fileStorageService,
-            AuditService auditService, ILogger<SubmissionsController> logger)
+            AuditService auditService, ILogger<SubmissionsController> logger,
+            IWebHostEnvironment webHostEnvironment) // AÑADIDO
         {
             _context = context;
             _fileStorageService = fileStorageService;
             _auditService = auditService;
             _logger = logger;
+            _webHostEnvironment = webHostEnvironment; // AÑADIDO
         }
 
         // ============================
@@ -41,24 +45,21 @@ namespace Control_De_Tareas.Controllers
 
             IQueryable<Submissions> query = _context.Submissions
                 .Include(s => s.Task)
-                    .ThenInclude(t => t.CourseOffering)  // Agregado para filtro
+                    .ThenInclude(t => t.CourseOffering)
                 .Include(s => s.Student)
                 .Include(s => s.SubmissionFiles)
                 .Include(s => s.Grades)
                     .ThenInclude(g => g.Grader)
                 .Where(s => !s.IsSoftDeleted);
 
-            // 🔐 Si es estudiante, solo sus entregas
             if (userInfo.Rol?.Nombre == "Estudiante")
             {
                 query = query.Where(s => s.StudentId == userInfo.UserId);
             }
-            // 🔐 Si es profesor, solo entregas de sus cursos
             else if (userInfo.Rol?.Nombre == "Profesor")
             {
                 query = query.Where(s => s.Task.CourseOffering.ProfessorId == userInfo.UserId);
             }
-            // Administrador ve todas las entregas sin filtro
 
             var submissions = await query
                 .OrderByDescending(s => s.SubmittedAt)
@@ -72,7 +73,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // DETAILS (OJITO AZUL)
+        // DETAILS
         // ============================
         [HttpGet]
         public async Task<IActionResult> Details(Guid id)
@@ -94,14 +95,12 @@ namespace Control_De_Tareas.Controllers
             if (submission == null)
                 return NotFound();
 
-            // Seguridad: estudiante solo ve su entrega
             if (userInfo.Rol?.Nombre == "Estudiante" && submission.StudentId != userInfo.UserId)
             {
                 TempData["Error"] = "No tienes permisos para ver esta entrega.";
                 return RedirectToAction("Index");
             }
 
-            // Seguridad: profesor solo ve entregas de sus cursos
             if (userInfo.Rol?.Nombre == "Profesor")
             {
                 var esProfesorDelCurso = submission.Task?.CourseOffering?.ProfessorId == userInfo.UserId;
@@ -234,6 +233,15 @@ namespace Control_De_Tareas.Controllers
                         string filePath = await _fileStorageService.SaveFileAsync(
                             file, courseOfferingIdInt, taskIdInt, uniqueFileName);
 
+                        // CORRECCIÓN: Verificar si el archivo se guardó correctamente
+                        _logger.LogInformation($"Archivo guardado: {file.FileName}, Ruta: {filePath}");
+                        if (!System.IO.File.Exists(filePath))
+                        {
+                            ModelState.AddModelError("Files", "Error al guardar el archivo en el servidor.");
+                            ViewBag.Tasks = await GetAvailableTasksForStudent(userInfo.UserId);
+                            return View(model);
+                        }
+
                         var submissionFile = new SubmissionFiles
                         {
                             Id = Guid.NewGuid(),
@@ -285,7 +293,6 @@ namespace Control_De_Tareas.Controllers
 
                 _logger.LogInformation("Usuario: {Nombre} ({Rol})", userInfo.Nombre, userInfo.Rol?.Nombre);
 
-                // Solo profesores y administradores pueden eliminar entregas
                 if (userInfo.Rol?.Nombre != "Profesor" && userInfo.Rol?.Nombre != "Administrador")
                 {
                     TempData["Error"] = "No tienes permisos para eliminar entregas.";
@@ -296,7 +303,7 @@ namespace Control_De_Tareas.Controllers
                 var submission = await _context.Submissions
                     .Include(s => s.Task)
                         .ThenInclude(t => t.CourseOffering)
-                            .ThenInclude(co => co.Course)  // Agregado para obtener nombre del curso
+                            .ThenInclude(co => co.Course)
                     .Include(s => s.Student)
                     .Include(s => s.SubmissionFiles)
                     .Include(s => s.Grades)
@@ -312,13 +319,11 @@ namespace Control_De_Tareas.Controllers
                 _logger.LogInformation("Entrega encontrada: Estudiante={StudentId}, Tarea={TaskTitle}",
                     submission.StudentId, submission.Task?.Title);
 
-                // 🔐 Verificar que el profesor sea del curso correspondiente
                 if (userInfo.Rol?.Nombre == "Profesor")
                 {
                     var esProfesorDelCurso = submission.Task?.CourseOffering?.ProfessorId == userInfo.UserId;
                     if (!esProfesorDelCurso)
                     {
-                        // ✅ MEJORAR EL MENSAJE DE ERROR
                         var cursoNombre = submission.Task?.CourseOffering?.Course?.Title ?? "curso desconocido";
                         var estudianteNombre = submission.Student?.UserName ?? "estudiante";
                         var tareaTitulo = submission.Task?.Title ?? "tarea";
@@ -335,14 +340,11 @@ namespace Control_De_Tareas.Controllers
 
                 _logger.LogInformation("Iniciando soft delete de entrega...");
 
-                // Soft delete de la entrega
                 submission.IsSoftDeleted = true;
 
-                // Soft delete de archivos relacionados
                 int archivosEliminados = 0;
                 foreach (var file in submission.SubmissionFiles)
                 {
-                    // Opcional: eliminar archivos físicos del servidor
                     try
                     {
                         if (System.IO.File.Exists(file.FilePath))
@@ -360,7 +362,6 @@ namespace Control_De_Tareas.Controllers
                     file.IsSoftDeleted = true;
                 }
 
-                // Soft delete de calificaciones
                 int calificacionesEliminadas = 0;
                 foreach (var grade in submission.Grades)
                 {
@@ -389,7 +390,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // REVIEW POR TAREA (S3-14)
+        // REVIEW POR TAREA
         // ============================
         [HttpGet]
         public async Task<IActionResult> Review(Guid taskId)
@@ -410,7 +411,6 @@ namespace Control_De_Tareas.Controllers
             if (task == null)
                 return NotFound();
 
-            // Si es profesor, verificar que sea su curso
             if (userInfo.Rol?.Nombre == "Profesor")
             {
                 var esProfesorDelCurso = task.CourseOffering.ProfessorId == userInfo.UserId;
@@ -463,7 +463,6 @@ namespace Control_De_Tareas.Controllers
             if (submission == null)
                 return NotFound();
 
-            // Si es profesor, verificar que sea su curso
             if (userInfo.Rol?.Nombre == "Profesor")
             {
                 var esProfesorDelCurso = submission.Task?.CourseOffering?.ProfessorId == userInfo.UserId;
@@ -501,7 +500,7 @@ namespace Control_De_Tareas.Controllers
         }
 
         // ============================
-        // DESCARGAR ARCHIVO DE ENTREGA
+        // DESCARGAR ARCHIVO DE ENTREGA - VERSIÓN CORREGIDA
         // ============================
         [HttpGet]
         public async Task<IActionResult> DownloadFile(Guid fileId)
@@ -519,9 +518,7 @@ namespace Control_De_Tareas.Controllers
                 }
 
                 _logger.LogInformation("Usuario: {Nombre} ({Rol})", userInfo.Nombre, userInfo.Rol?.Nombre);
-                _logger.LogInformation("UserId: {UserId}", userInfo.UserId);
 
-                // Obtener el archivo de entrega con información relacionada
                 var submissionFile = await _context.SubmissionFiles
                     .Include(f => f.Submission)
                         .ThenInclude(s => s.Student)
@@ -538,14 +535,11 @@ namespace Control_De_Tareas.Controllers
                 }
 
                 _logger.LogInformation("Archivo encontrado: {FileName}", submissionFile.FileName);
-                _logger.LogInformation("StudentId: {StudentId}", submissionFile.Submission?.StudentId);
-                _logger.LogInformation("TaskId: {TaskId}", submissionFile.Submission?.TaskId);
 
                 // Verificar permisos de seguridad
                 var userRole = userInfo.Rol?.Nombre;
                 var userId = userInfo.UserId;
 
-                // Estudiante: solo puede descargar sus propios archivos
                 if (userRole == "Estudiante")
                 {
                     if (submissionFile.Submission?.StudentId != userId)
@@ -554,10 +548,8 @@ namespace Control_De_Tareas.Controllers
                         TempData["Error"] = "No tienes permisos para descargar este archivo.";
                         return RedirectToAction("Index");
                     }
-                    _logger.LogInformation("Estudiante autorizado - es su propia entrega");
                 }
 
-                // Profesor: puede descargar archivos de sus cursos
                 if (userRole == "Profesor")
                 {
                     var task = submissionFile.Submission?.Task;
@@ -568,9 +560,6 @@ namespace Control_De_Tareas.Controllers
                         return RedirectToAction("Index");
                     }
 
-                    _logger.LogInformation("Profesor del curso: {ProfessorId}", task.CourseOffering.ProfessorId);
-                    _logger.LogInformation("Profesor actual: {UserId}", userId);
-
                     if (task.CourseOffering.ProfessorId != userId)
                     {
                         var cursoNombre = task.CourseOffering.Course?.Title ?? "curso desconocido";
@@ -578,14 +567,6 @@ namespace Control_De_Tareas.Controllers
                         TempData["Error"] = $"Solo el profesor del curso '{cursoNombre}' puede descargar estas entregas.";
                         return RedirectToAction("Index");
                     }
-
-                    _logger.LogInformation("Profesor autorizado para descargar");
-                }
-
-                // Administrador: siempre tiene acceso
-                if (userRole == "Administrador")
-                {
-                    _logger.LogInformation("Administrador autorizado");
                 }
 
                 if (userRole != "Administrador" && userRole != "Profesor" && userRole != "Estudiante")
@@ -595,85 +576,49 @@ namespace Control_De_Tareas.Controllers
                     return RedirectToAction("Index");
                 }
 
-                // Verificar si el archivo existe físicamente
+                // Obtener ruta del archivo
                 var filePath = submissionFile.FilePath;
                 _logger.LogInformation("FilePath original: {FilePath}", filePath);
 
-                // Si FilePath es relativo, convertirlo a absoluto
+                // Convertir ruta relativa a absoluta si es necesario
                 if (!Path.IsPathRooted(filePath))
                 {
-                    var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-
-                    // Remover ~/ o / del inicio si existe
                     if (filePath.StartsWith("~/") || filePath.StartsWith("/"))
                     {
                         filePath = filePath.TrimStart('~', '/');
                     }
-
-                    filePath = Path.Combine(webRootPath, filePath);
+                    filePath = Path.Combine(_webHostEnvironment.WebRootPath, filePath);
                 }
 
                 _logger.LogInformation("FilePath absoluto: {FilePath}", filePath);
 
                 if (!System.IO.File.Exists(filePath))
                 {
-                    _logger.LogError("ARCHIVO NO ENCONTRADO EN EL SERVIDOR: {FilePath}", filePath);
-
-                    // Verificar si la carpeta existe
-                    var directory = Path.GetDirectoryName(filePath);
-                    _logger.LogInformation("Directorio: {Directory}", directory);
-
-                    if (directory != null && Directory.Exists(directory))
-                    {
-                        _logger.LogInformation("El directorio existe pero el archivo no");
-                        var filesInDirectory = Directory.GetFiles(directory);
-                        _logger.LogInformation("Archivos en el directorio: {Count}", filesInDirectory.Length);
-                        foreach (var file in filesInDirectory)
-                        {
-                            _logger.LogInformation(" - {File}", Path.GetFileName(file));
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogError("El directorio no existe: {Directory}", directory);
-                    }
-
-                    return NotFound($"El archivo '{submissionFile.FileName}' no existe en el servidor. Ruta: {filePath}");
+                    _logger.LogError("ARCHIVO NO ENCONTRADO EN EL SERVER: {FilePath}", filePath);
+                    return NotFound($"El archivo '{submissionFile.FileName}' no existe en el servidor.");
                 }
 
-                // Obtener información del archivo
-                var fileInfo = new FileInfo(filePath);
-                _logger.LogInformation("Archivo encontrado. Tamaño: {Size} bytes", fileInfo.Length);
-                _logger.LogInformation("Última modificación: {LastWriteTime}", fileInfo.LastWriteTime);
-
-                // Leer el archivo
-                var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+                // CORRECCIÓN CLAVE: Usar FileStreamResult en lugar de File con bytes
+                var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 var contentType = GetContentType(submissionFile.FileName);
 
                 _logger.LogInformation("Content-Type: {ContentType}", contentType);
-                _logger.LogInformation("Tamaño leído: {Bytes} bytes", fileBytes.Length);
+                _logger.LogInformation("=== DESCARGA EXITOSA ===");
 
                 // Registrar auditoría
                 await _auditService.LogAsync("SUBMISSION_FILE_DOWNLOAD", "ArchivoEntrega", submissionFile.Id,
                     $"Archivo descargado: {submissionFile.FileName} por {userInfo.Nombre} ({userRole})");
 
-                _logger.LogInformation("=== DESCARGA EXITOSA ===");
-
-                // Forzar descarga en lugar de vista previa
-                var contentDisposition = new System.Net.Mime.ContentDisposition
+                // Retornar FileStreamResult - esto evita corrupción de archivos
+                return new FileStreamResult(fileStream, contentType)
                 {
-                    FileName = submissionFile.FileName,
-                    Inline = false  // Esto fuerza la descarga en lugar de abrir en el navegador
+                    FileDownloadName = submissionFile.FileName
                 };
-                Response.Headers.Add("Content-Disposition", contentDisposition.ToString());
-
-                return File(fileBytes, contentType);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ERROR CRÍTICO descargando archivo {FileId}", fileId);
 
-                // Registrar error en auditoría
                 await _auditService.LogAsync("SUBMISSION_FILE_DOWNLOAD_ERROR", "ArchivoEntrega", fileId,
                     $"Error al descargar archivo: {ex.Message}");
 
@@ -702,7 +647,6 @@ namespace Control_De_Tareas.Controllers
             if (submission == null)
                 return NotFound();
 
-            // Si es profesor, verificar que sea su curso
             if (userInfo.Rol?.Nombre == "Profesor")
             {
                 var esProfesorDelCurso = submission.Task?.CourseOffering?.ProfessorId == userInfo.UserId;
@@ -792,8 +736,7 @@ namespace Control_De_Tareas.Controllers
                 {".json", "application/json"},
                 {".mp4", "video/mp4"},
                 {".mp3", "audio/mpeg"},
-                {".wav", "audio/wav"},
-                {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
+                {".wav", "audio/wav"}
             };
 
             if (mimeTypes.ContainsKey(extension))
@@ -801,7 +744,6 @@ namespace Control_De_Tareas.Controllers
                 return mimeTypes[extension];
             }
 
-            // Si no se encuentra, usar genérico
             _logger.LogWarning("Extensión no reconocida: {Extension}, usando application/octet-stream", extension);
             return "application/octet-stream";
         }
