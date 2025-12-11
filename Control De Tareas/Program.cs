@@ -20,14 +20,14 @@ MapsterConfig.Configure();
 builder.Services.AddDbContext<ContextDB>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 2. Configuración de Autenticación (Define el esquema por defecto aquí)
+// 2. Configuración de Autenticación
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Home/AccessDenied";
         options.ExpireTimeSpan = TimeSpan.FromHours(2);
-        options.SlidingExpiration = true; // Renueva la cookie si el usuario está activo
+        options.SlidingExpiration = true;
     });
 
 // 3. Configuración de Autorización (Políticas)
@@ -46,7 +46,7 @@ builder.Services.AddAuthorization(options =>
 // 4. Configuración de Sesión
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Aumenté un poco el tiempo para coincidir mejor con la cookie
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
@@ -57,23 +57,27 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
+    // IMPORTANTE: Comentado para evitar errores en servidores sin SSL (http)
+    // app.UseHsts(); 
 }
 
-app.UseHttpsRedirection();
+// IMPORTANTE: Comentado para evitar el bucle de redirección a HTTPS (puerto 443)
+// que causa el ERR_CONNECTION_RESET en dominios temporales.
+// app.UseHttpsRedirection();
+
 app.UseStaticFiles();
 
 app.UseRouting();
 
 // --- ZONA CRÍTICA: EL ORDEN IMPORTA ---
 
-// 1º: Sesión (Debe ir antes de Auth si usas sesión en el proceso de login o en las vistas)
+// 1º: Sesión 
 app.UseSession();
 
-// 2º: Autenticación (¿Quién eres?)
+// 2º: Autenticación
 app.UseAuthentication();
 
-// 3º: Autorización (¿Tienes permiso?)
+// 3º: Autorización
 app.UseAuthorization();
 
 // --------------------------------------
